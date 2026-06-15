@@ -485,6 +485,7 @@
 </style>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script>
   const SUPABASE_URL = 'https://wdbymqpgfqjckojnqyii.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_N_ASLaJV5y16WCtep51whg_KXHfIpDK';
@@ -653,6 +654,23 @@
     <div id="nirPanel" style="display:none">
       <div class="nir-badge">✏️ Sessão NIR ativa — <span id="nirUserLabel"></span> &nbsp;|&nbsp; <span style="cursor:pointer;text-decoration:underline" onclick="doLogout()">Sair</span></div>
 
+      <!-- IMPORT SPREADSHEET -->
+      <div class="form-card" style="margin-bottom:1.25rem">
+        <h2>📥 Importar Planilha de Pacientes</h2>
+        <p class="form-sub">Envie um arquivo .xlsx ou .csv para substituir todos os pacientes da base do dashboard</p>
+        <div style="background:rgba(217,119,6,.07);border:1px solid rgba(217,119,6,.2);border-radius:10px;padding:.75rem 1rem;margin-bottom:1rem;font-size:.78rem;color:var(--text)">
+          ⚠️ <b>Atenção:</b> ao importar, <b>todos os pacientes atuais da base serão substituídos</b> pelos dados da planilha. Pacientes cadastrados manualmente pelo NIR (✏️) não são afetados.
+          <br><br>
+          <b>Colunas esperadas</b> (cabeçalho na primeira linha, nomes flexíveis): <span style="font-family:'DM Mono',monospace;font-size:.7rem">Setor, Leito, Paciente/Nome, Diagnóstico, Plano/Pendência, D.I./Data Internação, Previsão Alta, Permanência, Oncológico</span>
+        </div>
+        <div class="field">
+          <label>Arquivo (.xlsx, .xls ou .csv)</label>
+          <input type="file" id="importFile" accept=".xlsx,.xls,.csv" style="padding:.5rem">
+        </div>
+        <button class="btn-primary" onclick="handleImportFile()">📥 Importar e Substituir Base</button>
+        <div id="importStatus" style="margin-top:.75rem;font-size:.8rem"></div>
+      </div>
+
       <div class="nir-layout">
         <!-- FORM -->
         <div class="form-card">
@@ -665,7 +683,7 @@
           <div class="field-row">
             <div class="field">
               <label>Setor *</label>
-              <select id="fSetor">
+              <select id="fSetor" onchange="updateLeitoOptions()">
                 <option value="">Selecione...</option>
                 <option>CMM</option><option>CMF</option><option>CCM</option><option>CCF</option>
                 <option>UTI</option><option>UPC</option><option>PED</option><option>MAT</option>
@@ -674,7 +692,10 @@
             </div>
             <div class="field">
               <label>Leito *</label>
-              <input type="text" id="fLeito" placeholder="Ex: 401">
+              <select id="fLeito">
+                <option value="">Selecione o setor primeiro...</option>
+              </select>
+              <div id="leitoHint" style="font-size:.68rem;color:var(--muted);margin-top:.3rem;font-family:'DM Mono',monospace"></div>
             </div>
           </div>
 
@@ -952,8 +973,8 @@ const sectors = [
   {name:'CTI Adulto',                vagos:0, bloq:0,  ocup:10,total:10},
 ];
 
-// Base patients from spreadsheet
-const basePats = [
+// Base patients from spreadsheet (replaceable via import)
+let basePats = [
   {s:'CMM',l:'401',n:'Marcio Cerqueira',d:'Neoplasia dos Ossos',pl:'',alta:'',di:'22/04',perm:'Verde',onco:false,src:'base'},
   {s:'CMM',l:'402',n:'Cilas Albernaz da Silva',d:'Neo Pulmão',pl:'',alta:'',di:'22/04',perm:'Amarelo',onco:false,src:'base'},
   {s:'CMM',l:'403',n:'Raimundo Pereira da Silva',d:'Pancitopenia',pl:'',alta:'',di:'06/04',perm:'Vermelho',onco:false,src:'base'},
@@ -1032,6 +1053,70 @@ const basePats = [
   {s:'MAT',l:'536',n:'Cintia Coelho Gorni',d:'Sofrimento Fetal',pl:'',alta:'',di:'06/04',perm:'Verde',onco:false,src:'base'},
 ];
 
+
+// ── Faixas de leitos por setor (para gerar opções no formulário) ──
+const SECTOR_LEITO_RANGES = {
+  'CMM':     { start: 401, end: 430, pad: 0 },
+  'CMF':     { start: 601, end: 628, pad: 0 },
+  'CCM':     { start: 301, end: 327, pad: 0 },
+  'CCF':     { start: 551, end: 578, pad: 0 },
+  'GO':      { start: 701, end: 709, pad: 0 },
+  'MAT':     { start: 501, end: 539, pad: 0 },
+  'PED':     { start: 101, end: 127, pad: 0 },
+  'UTI':     { start: 1,   end: 10,  pad: 2 },
+  'UPC':     { start: 1,   end: 10,  pad: 2 },
+  'UCINCA':  { start: 1,   end: 6,   pad: 2 },
+  'UCINCO':  { start: 1,   end: 10,  pad: 2 },
+  'UTI NEO': { start: 1,   end: 10,  pad: 2 },
+  'UTI INF': { start: 1,   end: 3,   pad: 2 },
+};
+
+// ── Gera lista de leitos vagos para um setor (todos os leitos da faixa - ocupados) ──
+function getLeitosVagos(setor, currentLeito) {
+  const range = SECTOR_LEITO_RANGES[setor];
+  if (!range) return [];
+  const occupied = new Set(
+    allPatients()
+      .filter(p => p.s === setor)
+      .map(p => p.l)
+  );
+  const vagos = [];
+  for (let i = range.start; i <= range.end; i++) {
+    const leito = range.pad ? String(i).padStart(range.pad,'0') : String(i);
+    if (!occupied.has(leito) || leito === currentLeito) vagos.push(leito);
+  }
+  return vagos;
+}
+
+// ── Atualiza o select de Leito com base no setor escolhido ──
+function updateLeitoOptions(currentLeito) {
+  const setor = document.getElementById('fSetor').value;
+  const sel = document.getElementById('fLeito');
+  const hint = document.getElementById('leitoHint');
+  sel.innerHTML = '';
+
+  if (!setor) {
+    sel.innerHTML = '<option value="">Selecione o setor primeiro...</option>';
+    hint.textContent = '';
+    return;
+  }
+
+  const vagos = getLeitosVagos(setor, currentLeito);
+
+  if (!vagos.length) {
+    sel.innerHTML = '<option value="">Nenhum leito vago neste setor</option>';
+    hint.textContent = '⚠️ Setor sem leitos vagos disponíveis';
+    hint.style.color = 'var(--red)';
+    return;
+  }
+
+  sel.innerHTML = '<option value="">Selecione o leito...</option>' +
+    vagos.map(l => `<option value="${l}" ${l===currentLeito?'selected':''}>L-${l}${l===currentLeito?' (atual)':''}</option>`).join('');
+
+  hint.textContent = `✅ ${vagos.length} leito(s) vago(s) em ${setor}`;
+  hint.style.color = 'var(--green)';
+}
+
 // ── NIR storage ──
 let nirPatients = [];
 let nextId = 1;
@@ -1105,9 +1190,10 @@ async function loadAllFromSupabase() {
       return;
     }
 
-    // ── pacientes: split into baseEdits (origem='base') and nirPatients (origem='nir') ──
+    // ── pacientes: split into basePats (importados), baseEdits (origem='base') e nirPatients (origem='nir') ──
     baseEdits = {};
     nirPatients = [];
+    const importedBase = [];
     let maxId = 0;
     (pacRes.data || []).forEach(row => {
       const obj = {
@@ -1117,7 +1203,11 @@ async function loadAllFromSupabase() {
         perm: row.permanencia || 'Verde', onco: !!row.onco,
         src: row.origem, user: row.usuario || ''
       };
-      if (row.origem === 'base') {
+      if (row.origem === 'base_import') {
+        obj.src = 'base';
+        obj._baseKey = row.base_key;
+        importedBase.push(obj);
+      } else if (row.origem === 'base') {
         obj._baseKey = row.base_key;
         baseEdits[row.base_key] = obj;
       } else {
@@ -1126,6 +1216,14 @@ async function loadAllFromSupabase() {
       if (row.id > maxId) maxId = row.id;
     });
     nextId = maxId + 1;
+
+    // se houver pacientes importados, eles substituem a basePats padrão
+    if (importedBase.length) {
+      basePats = importedBase.map(p => {
+        const {_baseKey, id, user, ...rest} = p;
+        return rest;
+      });
+    }
 
     // ── pendências SER ──
     serPatients = (serRes.data || []).map(row => ({
@@ -1386,7 +1484,7 @@ function loadPatientToForm(p) {
   document.getElementById('editId').value     = p.src === 'nir' ? p.id : '';
   document.getElementById('editBaseKey').value = p._baseKey || '';
   document.getElementById('fSetor').value = p.s;
-  document.getElementById('fLeito').value = p.l;
+  updateLeitoOptions(p.l);
   document.getElementById('fNome').value  = p.n;
   document.getElementById('fDiag').value  = p.d;
   document.getElementById('fPlano').value = p.pl || '';
@@ -1482,7 +1580,9 @@ function clearForm() {
   document.getElementById('editId').value = '';
   document.getElementById('editBaseKey').value = '';
   document.getElementById('fSetor').value = '';
-  ['fLeito','fNome','fDiag','fPlano','fDI','fAlta'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('fLeito').innerHTML = '<option value="">Selecione o setor primeiro...</option>';
+  document.getElementById('leitoHint').textContent = '';
+  ['fNome','fDiag','fPlano','fDI','fAlta'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('fPerm').value = 'Verde';
   document.getElementById('oncoNao').checked = true;
   document.getElementById('formTitle').textContent = '➕ Novo Paciente';
@@ -2040,6 +2140,187 @@ function renderDashPending() {
       </div>
     </div>`;
   }).join('');
+}
+
+
+// ═══════════════════════════════════════════════════════════
+// IMPORTAÇÃO DE PLANILHA
+// ═══════════════════════════════════════════════════════════
+
+// Mapeia nomes de colunas (flexível, case-insensitive, sem acento) para os campos internos
+const IMPORT_COLUMN_MAP = {
+  setor:        ['setor','sector','unidade','ala'],
+  leito:        ['leito','cama','lt'],
+  nome:         ['paciente','nome','nome do paciente','nome completo'],
+  diagnostico:  ['diagnostico','diagnóstico','cid','dx'],
+  plano:        ['plano','plano terapeutico','plano terapêutico','pendencia','pendência','observacao','observação','obs'],
+  di:           ['di','d.i.','data internacao','data internação','data de internacao','data de internação','internacao','internação'],
+  alta:         ['alta','previsao de alta','previsão de alta','prev alta','data alta'],
+  perm:         ['permanencia','permanência','tempo de permanencia','tempo de permanência'],
+  onco:         ['onco','oncologico','oncológico','paciente oncologico','paciente oncológico'],
+};
+
+function normalizeHeader(h) {
+  return String(h||'').toLowerCase().trim()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,''); // remove acentos
+}
+
+function mapRowToPatient(row, headerMap) {
+  const get = (field) => {
+    const col = headerMap[field];
+    return col !== undefined ? row[col] : undefined;
+  };
+
+  const setor = String(get('setor')||'').trim().toUpperCase();
+  const leito = String(get('leito')||'').trim();
+  const nome  = String(get('nome')||'').trim();
+  const diag  = String(get('diagnostico')||'').trim();
+  if (!setor || !leito || !nome) return null;
+
+  const plano = String(get('plano')||'').trim();
+
+  // datas: aceitar formato dd/mm/aaaa, dd/mm, ou serial do Excel
+  function parseDateCell(val) {
+    if (val === undefined || val === null || val === '') return '';
+    if (typeof val === 'number') {
+      // Excel serial date
+      const d = XLSX.SSF.parse_date_code(val);
+      if (d) return String(d.d).padStart(2,'0') + '/' + String(d.m).padStart(2,'0') + (d.y ? '/'+d.y : '');
+    }
+    return String(val).trim();
+  }
+  const di   = parseDateCell(get('di'));
+  const alta = parseDateCell(get('alta'));
+
+  // permanência
+  let perm = String(get('perm')||'').trim();
+  const permLower = perm.toLowerCase();
+  if (permLower.includes('verm') || permLower.includes('long') || permLower.includes('red')) perm = 'Vermelho';
+  else if (permLower.includes('amar') || permLower.includes('med') || permLower.includes('méd') || permLower.includes('yellow')) perm = 'Amarelo';
+  else if (permLower.includes('verd') || permLower.includes('cur') || permLower.includes('green')) perm = 'Verde';
+  else perm = 'Verde'; // default
+
+  // oncológico
+  let oncoVal = get('onco');
+  let onco = false;
+  if (typeof oncoVal === 'boolean') onco = oncoVal;
+  else if (typeof oncoVal === 'string') {
+    const ov = oncoVal.toLowerCase().trim();
+    onco = ['sim','s','yes','y','true','1','x'].includes(ov);
+  } else if (typeof oncoVal === 'number') onco = oncoVal === 1;
+
+  return {
+    s: setor, l: leito, n: nome, d: diag || '—',
+    pl: plano, di: di, alta: alta, perm: perm, onco: onco, src: 'base'
+  };
+}
+
+async function handleImportFile() {
+  const fileInput = document.getElementById('importFile');
+  const statusEl = document.getElementById('importStatus');
+  const file = fileInput.files[0];
+
+  if (!file) {
+    statusEl.innerHTML = '<span style="color:var(--red)">⚠️ Selecione um arquivo primeiro.</span>';
+    return;
+  }
+
+  statusEl.innerHTML = '<span style="color:var(--accent2)">⏳ Lendo arquivo...</span>';
+
+  try {
+    const data = await file.arrayBuffer();
+    const workbook = XLSX.read(data, { type: 'array', cellDates: false });
+    const sheetName = workbook.SheetNames[0];
+    const sheet = workbook.Sheets[sheetName];
+    const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+
+    if (!rows.length) {
+      statusEl.innerHTML = '<span style="color:var(--red)">⚠️ A planilha está vazia.</span>';
+      return;
+    }
+
+    // Build header map: normalize all column names from first row
+    const sampleRow = rows[0];
+    const actualHeaders = Object.keys(sampleRow);
+    const normalizedHeaders = {};
+    actualHeaders.forEach(h => normalizedHeaders[normalizeHeader(h)] = h);
+
+    const headerMap = {};
+    for (const [field, aliases] of Object.entries(IMPORT_COLUMN_MAP)) {
+      for (const alias of aliases) {
+        const norm = normalizeHeader(alias);
+        if (normalizedHeaders[norm] !== undefined) {
+          headerMap[field] = normalizedHeaders[norm];
+          break;
+        }
+      }
+    }
+
+    if (!headerMap.setor || !headerMap.leito || !headerMap.nome) {
+      statusEl.innerHTML = `<span style="color:var(--red)">⚠️ Não encontrei as colunas obrigatórias (Setor, Leito, Paciente). Colunas encontradas: ${actualHeaders.join(', ')}</span>`;
+      return;
+    }
+
+    const parsed = rows.map(r => mapRowToPatient(r, headerMap)).filter(Boolean);
+
+    if (!parsed.length) {
+      statusEl.innerHTML = '<span style="color:var(--red)">⚠️ Nenhuma linha válida encontrada na planilha.</span>';
+      return;
+    }
+
+    if (!confirm(`Importar ${parsed.length} pacientes? Isso irá SUBSTITUIR todos os pacientes da base atual.`)) {
+      statusEl.innerHTML = '';
+      return;
+    }
+
+    statusEl.innerHTML = `<span style="color:var(--accent2)">⏳ Importando ${parsed.length} pacientes para o banco de dados...</span>`;
+
+    // ── 1. Remove old imported base + base edits + AIH/fluxo tied to old base_keys ──
+    await sb.from('pacientes').delete().eq('origem', 'base_import');
+    await sb.from('pacientes').delete().eq('origem', 'base');
+    await sb.from('aih_solicitacoes').delete().neq('id', 0);
+    await sb.from('fluxo_paciente').delete().neq('id', 0);
+
+    // ── 2. Insert new imported base rows ──
+    const rowsToInsert = parsed.map(p => ({
+      base_key: p.s + '_' + p.l,
+      setor: p.s, leito: p.l, nome: p.n, diagnostico: p.d,
+      plano: p.pl || '', data_alta: p.alta || '', data_int: p.di || '',
+      permanencia: p.perm, onco: !!p.onco,
+      origem: 'base_import', usuario: currentUser || 'NIR'
+    }));
+
+    // Insert in batches of 200 to avoid payload limits
+    const BATCH = 200;
+    for (let i = 0; i < rowsToInsert.length; i += BATCH) {
+      const batch = rowsToInsert.slice(i, i + BATCH);
+      const { error } = await sb.from('pacientes').insert(batch);
+      if (error) throw error;
+    }
+
+    // ── 3. Clear in-memory NIR-related state tied to old base ──
+    baseEdits = {};
+    aihSet = {};
+    flowData = {};
+
+    // ── 4. Replace basePats in memory immediately ──
+    basePats = parsed.map(p => ({...p}));
+
+    statusEl.innerHTML = `<span style="color:var(--green)">✅ ${parsed.length} pacientes importados com sucesso! Atualizando o dashboard...</span>`;
+
+    updateHeroNir();
+    renderTable();
+    if (document.getElementById('page-nir').classList.contains('active')) renderRecList();
+
+    showToast('✅ Planilha importada: ' + parsed.length + ' pacientes', 'success');
+
+    // Clear the file input
+    fileInput.value = '';
+
+  } catch (err) {
+    console.error('Erro ao importar planilha:', err);
+    statusEl.innerHTML = `<span style="color:var(--red)">❌ Erro ao importar: ${err.message || err}</span>`;
+  }
 }
 
 // ═══════════════════════════════════════════════════════════
