@@ -1,0 +1,2075 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard de Leitos — CCSR</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&display=swap');
+
+  :root {
+    --bg: #f0f4f8;
+    --surface: #ffffff;
+    --surface2: #f7f9fc;
+    --border: #dde3ed;
+    --text: #1a2235;
+    --muted: #7a8aa0;
+    --accent: #2563eb;
+    --accent2: #0891b2;
+    --green: #059669;
+    --yellow: #d97706;
+    --red: #dc2626;
+    --purple: #7c3aed;
+    --orange: #ea580c;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(37,99,235,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(37,99,235,0.04) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .wrapper { position: relative; z-index: 1; padding: 2rem; max-width: 1600px; margin: 0 auto; }
+
+  /* ── HEADER ── */
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 1.5rem; padding-bottom: 1.5rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .logo-area { display: flex; align-items: center; gap: 1rem; }
+  .logo-icon {
+    width: 48px; height: 48px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.4rem;
+    box-shadow: 0 4px 14px rgba(37,99,235,0.25);
+  }
+  .logo-text h1 { font-size: 1.4rem; font-weight: 800; letter-spacing: -0.5px; }
+  .logo-text p { font-size: 0.75rem; color: var(--muted); font-family: 'DM Mono', monospace; margin-top: 2px; }
+  .header-meta { text-align: right; }
+  .header-meta .date { font-family: 'DM Mono', monospace; font-size: 0.8rem; color: var(--muted); }
+  .live-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: rgba(5,150,105,0.08); border: 1px solid rgba(5,150,105,0.25);
+    color: var(--green); font-size: 0.7rem; font-family: 'DM Mono', monospace;
+    padding: 3px 10px; border-radius: 20px; margin-top: 4px;
+  }
+  .live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); animation: pulse 1.5s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  /* ── NAV TABS ── */
+  .nav-tabs {
+    display: flex; gap: 0.25rem;
+    margin-bottom: 2rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 5px;
+    width: fit-content;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  }
+  .nav-tab {
+    padding: 0.5rem 1.4rem;
+    border-radius: 8px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.18s;
+    color: var(--muted);
+    letter-spacing: 0.3px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .nav-tab:hover { color: var(--accent); background: rgba(37,99,235,0.05); }
+  .nav-tab.active { background: var(--accent); color: #fff; box-shadow: 0 2px 8px rgba(37,99,235,0.3); }
+
+  /* ── PAGE SECTIONS ── */
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* ── HERO STATS ── */
+  .hero-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 2rem; }
+  .hero-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 16px; padding: 1.5rem; position: relative; overflow: hidden;
+    transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  }
+  .hero-card:hover { transform: translateY(-2px); border-color: var(--accent); box-shadow: 0 6px 20px rgba(37,99,235,0.12); }
+  .hero-card::before {
+    content: ''; position: absolute; top: 0; right: 0;
+    width: 80px; height: 80px; border-radius: 50%; opacity: 0.08;
+    transform: translate(20px,-20px);
+  }
+  .hero-card.blue::before { background: var(--accent); }
+  .hero-card.green::before { background: var(--green); }
+  .hero-card.yellow::before { background: var(--yellow); }
+  .hero-card.red::before { background: var(--red); }
+  .hero-label { font-size: 0.7rem; font-family: 'DM Mono', monospace; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+  .hero-value { font-size: 2.8rem; font-weight: 800; line-height: 1.1; margin: 0.3rem 0; }
+  .hero-card.blue .hero-value { color: var(--accent2); }
+  .hero-card.green .hero-value { color: var(--green); }
+  .hero-card.yellow .hero-value { color: var(--yellow); }
+  .hero-card.red .hero-value { color: var(--red); }
+  .hero-sub { font-size: 0.75rem; color: var(--muted); }
+  .hero-bar-bg { height: 4px; background: var(--border); border-radius: 2px; margin-top: 1rem; }
+  .hero-bar { height: 4px; border-radius: 2px; }
+
+  /* ── SECTION HEADER ── */
+  .section-header { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem; }
+  .section-title { font-size: 0.9rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; white-space: nowrap; }
+  .section-line { flex: 1; height: 1px; background: var(--border); }
+
+  /* ── OCC GRID ── */
+  .occ-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; margin-bottom: 2rem; }
+  .occ-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 1rem 1.2rem;
+    display: flex; flex-direction: column; gap: 0.6rem;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  }
+  .occ-card:hover { border-color: rgba(37,99,235,0.4); box-shadow: 0 4px 12px rgba(37,99,235,0.08); }
+  .occ-top { display: flex; justify-content: space-between; align-items: flex-start; }
+  .occ-name { font-size: 0.8rem; font-weight: 600; line-height: 1.3; }
+  .occ-pct { font-family: 'DM Mono', monospace; font-size: 0.95rem; font-weight: 500; white-space: nowrap; margin-left: 0.5rem; }
+  .occ-nums { display: flex; gap: 1rem; font-family: 'DM Mono', monospace; font-size: 0.7rem; color: var(--muted); }
+  .occ-nums span b { color: var(--text); font-size: 0.85rem; }
+  .occ-bar-bg { height: 5px; background: var(--border); border-radius: 3px; }
+  .occ-bar { height: 5px; border-radius: 3px; }
+  .clr-full{color:var(--red)} .clr-high{color:var(--yellow)} .clr-mid{color:var(--accent2)} .clr-low{color:var(--green)}
+  .bar-full{background:var(--red)} .bar-high{background:var(--yellow)}
+  .bar-mid{background:linear-gradient(90deg,var(--accent),var(--accent2))} .bar-low{background:var(--green)}
+
+  /* ── PATIENT TABLE ── */
+  .table-wrap {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 16px; overflow: hidden; margin-bottom: 2rem;
+    box-shadow: 0 1px 6px rgba(0,0,0,0.06);
+  }
+  .table-toolbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 1rem 1.5rem; border-bottom: 1px solid var(--border);
+    flex-wrap: wrap; gap: 0.75rem;
+  }
+  .search-box {
+    display: flex; align-items: center; gap: 0.5rem;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 6px 12px;
+  }
+  .search-box input {
+    background: none; border: none; outline: none;
+    color: var(--text); font-family: 'DM Mono', monospace; font-size: 0.8rem; width: 220px;
+  }
+  .search-box input::placeholder { color: var(--muted); }
+  .filter-tabs { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+  .tab {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 6px; padding: 4px 10px;
+    font-size: 0.72rem; font-family: 'DM Mono', monospace;
+    color: var(--muted); cursor: pointer; transition: all 0.15s;
+  }
+  .tab.active { background: var(--accent); border-color: var(--accent); color: white; }
+  .tab:hover:not(.active) { border-color: var(--accent); color: var(--accent); }
+  table { width: 100%; border-collapse: collapse; }
+  thead th {
+    text-align: left; font-size: 0.65rem; font-family: 'DM Mono', monospace;
+    color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px;
+    padding: 0.6rem 1rem; background: var(--surface2); border-bottom: 1px solid var(--border);
+  }
+  tbody tr { border-bottom: 1px solid rgba(221,227,237,0.7); transition: background 0.15s; }
+  tbody tr:hover { background: rgba(37,99,235,0.04); }
+  tbody td { padding: 0.65rem 1rem; font-size: 0.8rem; vertical-align: middle; }
+  .td-setor { font-family:'DM Mono',monospace; font-size:0.7rem; font-weight:500; color:var(--accent2); white-space:nowrap; }
+  .td-leito { font-family:'DM Mono',monospace; font-size:0.72rem; color:var(--muted); white-space:nowrap; }
+  .td-nome { font-weight:600; max-width:200px; }
+  .td-diag { color:var(--muted); font-size:0.75rem; max-width:180px; }
+  .td-di { font-family:'DM Mono',monospace; font-size:0.72rem; color:var(--muted); white-space:nowrap; }
+  .td-plan { font-size:0.72rem; color:var(--text); max-width:200px; }
+  .td-alta { font-family:'DM Mono',monospace; font-size:0.72rem; color:var(--accent); white-space:nowrap; }
+  .stay-chip { display:inline-flex; align-items:center; gap:4px; padding:2px 8px; border-radius:20px; font-size:0.65rem; font-family:'DM Mono',monospace; font-weight:500; white-space:nowrap; }
+  .stay-green { background:rgba(5,150,105,0.1); color:var(--green); border:1px solid rgba(5,150,105,0.2); }
+  .stay-yellow { background:rgba(217,119,6,0.1); color:var(--yellow); border:1px solid rgba(217,119,6,0.2); }
+  .stay-red { background:rgba(220,38,38,0.1); color:var(--red); border:1px solid rgba(220,38,38,0.2); }
+  .onco-badge { display:inline-flex; padding:1px 6px; border-radius:4px; font-size:0.6rem; font-family:'DM Mono',monospace; background:rgba(124,58,237,0.1); color:var(--purple); border:1px solid rgba(124,58,237,0.2); }
+  .btn-edit { background:none; border:1px solid var(--border); border-radius:5px; padding:2px 8px; font-size:0.65rem; font-family:'DM Mono',monospace; color:var(--accent); cursor:pointer; transition:all 0.15s; }
+  .btn-edit:hover { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .btn-del { background:none; border:1px solid var(--border); border-radius:5px; padding:2px 8px; font-size:0.65rem; font-family:'DM Mono',monospace; color:var(--red); cursor:pointer; transition:all 0.15s; margin-left:4px; }
+  .btn-del:hover { background:var(--red); color:#fff; border-color:var(--red); }
+  .pagination { display:flex; align-items:center; gap:0.5rem; padding:0.75rem 1.5rem; border-top:1px solid var(--border); }
+  .page-info { font-family:'DM Mono',monospace; font-size:0.72rem; color:var(--muted); margin-right:auto; }
+  .page-btn { background:var(--surface2); border:1px solid var(--border); border-radius:6px; padding:4px 10px; font-size:0.72rem; font-family:'DM Mono',monospace; color:var(--muted); cursor:pointer; transition:all 0.15s; }
+  .page-btn:hover { border-color:var(--accent); color:var(--accent); }
+  .page-btn.active { background:var(--accent); border-color:var(--accent); color:white; }
+
+  /* ── BOTTOM GRID ── */
+  .bottom-grid { display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:2rem; }
+  .mini-card { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:1.25rem 1.5rem; box-shadow:0 1px 4px rgba(0,0,0,0.06); }
+  .mini-card h3 { font-size:0.8rem; color:var(--muted); text-transform:uppercase; letter-spacing:1px; margin-bottom:1rem; }
+  .pending-list { display:flex; flex-direction:column; gap:0.6rem; }
+  .pending-item { display:flex; align-items:flex-start; gap:0.75rem; padding:0.6rem 0.8rem; background:var(--surface2); border-radius:8px; font-size:0.78rem; }
+  .pending-dot { width:7px; height:7px; border-radius:50%; margin-top:4px; flex-shrink:0; }
+  .pending-name { font-weight:600; }
+  .pending-detail { font-size:0.7rem; color:var(--muted); margin-top:1px; }
+  .uti-slots { display:grid; grid-template-columns:repeat(5,1fr); gap:6px; }
+  .slot { aspect-ratio:1; border-radius:8px; display:flex; align-items:center; justify-content:center; font-family:'DM Mono',monospace; font-size:0.6rem; font-weight:500; cursor:default; transition:transform 0.15s; }
+  .slot:hover { transform:scale(1.05); }
+  .slot-occ { background:rgba(220,38,38,0.12); border:1px solid rgba(220,38,38,0.3); color:var(--red); }
+  .slot-free { background:rgba(5,150,105,0.1); border:1px solid rgba(5,150,105,0.25); color:var(--green); }
+
+  /* ── NIR FORM PAGE ── */
+  .nir-layout { display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; align-items:start; }
+  .form-card {
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:16px; padding:2rem;
+    box-shadow:0 1px 6px rgba(0,0,0,0.06);
+  }
+  .form-card h2 { font-size:1rem; font-weight:800; margin-bottom:0.25rem; }
+  .form-card .form-sub { font-size:0.75rem; color:var(--muted); font-family:'DM Mono',monospace; margin-bottom:1.5rem; }
+
+  /* LOGIN */
+  .login-box { max-width:400px; margin:3rem auto; }
+  .login-box .form-card { text-align:center; }
+  .login-logo { font-size:2rem; margin-bottom:0.75rem; }
+
+  .field { margin-bottom:1.1rem; }
+  .field label { display:block; font-size:0.72rem; font-weight:700; text-transform:uppercase; letter-spacing:0.8px; color:var(--muted); margin-bottom:0.4rem; }
+  .field input, .field select, .field textarea {
+    width:100%; padding:0.6rem 0.85rem;
+    background:var(--surface2); border:1px solid var(--border);
+    border-radius:8px; font-family:'Syne',sans-serif; font-size:0.85rem;
+    color:var(--text); outline:none; transition:border-color 0.15s, box-shadow 0.15s;
+  }
+  .field input:focus, .field select:focus, .field textarea:focus {
+    border-color:var(--accent); box-shadow:0 0 0 3px rgba(37,99,235,0.1);
+  }
+  .field textarea { resize:vertical; min-height:80px; }
+  .field-row { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
+  .field-row3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:1rem; }
+
+  .onco-toggle { display:flex; gap:0.75rem; }
+  .onco-opt { flex:1; }
+  .onco-opt input { display:none; }
+  .onco-opt label {
+    display:block; text-align:center; padding:0.55rem;
+    background:var(--surface2); border:1.5px solid var(--border);
+    border-radius:8px; font-size:0.82rem; font-weight:600;
+    cursor:pointer; transition:all 0.15s;
+  }
+  .onco-opt input:checked + label { background:var(--purple); border-color:var(--purple); color:#fff; }
+  .onco-opt.no input:checked + label { background:var(--green); border-color:var(--green); color:#fff; }
+
+  .btn-primary {
+    width:100%; padding:0.75rem;
+    background:var(--accent); color:#fff;
+    border:none; border-radius:10px; font-family:'Syne',sans-serif;
+    font-size:0.9rem; font-weight:700; cursor:pointer;
+    transition:background 0.15s, transform 0.1s, box-shadow 0.15s;
+    box-shadow:0 2px 10px rgba(37,99,235,0.3);
+  }
+  .btn-primary:hover { background:#1d4ed8; transform:translateY(-1px); box-shadow:0 4px 16px rgba(37,99,235,0.4); }
+  .btn-primary:active { transform:translateY(0); }
+  .btn-secondary {
+    width:100%; padding:0.65rem;
+    background:var(--surface2); color:var(--muted);
+    border:1px solid var(--border); border-radius:10px; font-family:'Syne',sans-serif;
+    font-size:0.85rem; font-weight:600; cursor:pointer; transition:all 0.15s;
+    margin-top:0.5rem;
+  }
+  .btn-secondary:hover { border-color:var(--accent); color:var(--accent); }
+
+  .toast {
+    position:fixed; bottom:2rem; right:2rem; z-index:9999;
+    background:var(--text); color:#fff;
+    padding:0.75rem 1.25rem; border-radius:10px;
+    font-size:0.82rem; font-weight:600;
+    box-shadow:0 4px 20px rgba(0,0,0,0.15);
+    transform:translateY(20px); opacity:0;
+    transition:all 0.3s; pointer-events:none;
+  }
+  .toast.show { transform:translateY(0); opacity:1; }
+  .toast.success { background:var(--green); }
+  .toast.error { background:var(--red); }
+
+  /* recent list */
+  .rec-list { display:flex; flex-direction:column; gap:0.5rem; max-height:520px; overflow-y:auto; }
+  .rec-item {
+    background:var(--surface2); border:1px solid var(--border);
+    border-radius:10px; padding:0.75rem 1rem;
+    display:flex; justify-content:space-between; align-items:flex-start; gap:0.5rem;
+  }
+  .rec-item-info .ri-nome { font-weight:700; font-size:0.85rem; }
+  .rec-item-info .ri-meta { font-size:0.7rem; font-family:'DM Mono',monospace; color:var(--muted); margin-top:2px; }
+  .rec-item-info .ri-diag { font-size:0.75rem; color:var(--muted); margin-top:3px; }
+  .rec-actions { display:flex; gap:4px; flex-shrink:0; }
+  .nir-badge {
+    display:inline-flex; align-items:center; gap:6px;
+    background:rgba(37,99,235,0.08); border:1px solid rgba(37,99,235,0.2);
+    color:var(--accent); font-size:0.72rem; font-family:'DM Mono',monospace;
+    padding:4px 12px; border-radius:20px; margin-bottom:1.5rem;
+  }
+
+  /* empty state */
+  .empty-state { text-align:center; padding:3rem 1rem; color:var(--muted); }
+  .empty-state .ei { font-size:2.5rem; margin-bottom:0.5rem; }
+  .empty-state p { font-size:0.85rem; }
+
+  footer { text-align:center; font-size:0.7rem; font-family:'DM Mono',monospace; color:var(--muted); padding-top:1rem; border-top:1px solid var(--border); }
+
+  /* ── REC BADGES ── */
+  .rec-badge { font-size:.6rem;padding:1px 6px;border-radius:4px;font-family:"DM Mono",monospace; }
+  .rec-badge.nir { background:rgba(37,99,235,.12);color:var(--accent);border:1px solid rgba(37,99,235,.25); }
+  .rec-badge.edited { background:rgba(217,119,6,.12);color:var(--yellow);border:1px solid rgba(217,119,6,.25); }
+  .rec-badge.base { background:rgba(5,150,105,.1);color:var(--green);border:1px solid rgba(5,150,105,.2); }
+  .rec-tab { background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:3px 9px;font-size:.68rem;font-family:"DM Mono",monospace;color:var(--muted);cursor:pointer;transition:all .15s; }
+  .rec-tab.active { background:var(--accent);border-color:var(--accent);color:white; }
+  .rec-search { display:flex;align-items:center;gap:.5rem;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:5px 10px;margin-bottom:.75rem; }
+  .rec-search input { background:none;border:none;outline:none;color:var(--text);font-family:"DM Mono",monospace;font-size:.78rem;width:100%; }
+
+  /* ── AIH BADGE ── */
+  .aih-btn {
+    background: none; border: 1px solid rgba(139,92,246,.35);
+    border-radius: 6px; padding: 2px 8px; font-size: .63rem;
+    font-family: 'DM Mono', monospace; color: var(--purple);
+    cursor: pointer; transition: all .15s; white-space: nowrap;
+    margin-left: 4px;
+  }
+  .aih-btn:hover { background: var(--purple); color: #fff; border-color: var(--purple); }
+  .aih-btn.solicitada {
+    background: rgba(139,92,246,.12); border-color: var(--purple);
+    color: var(--purple); cursor: default;
+  }
+  .aih-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: .62rem; font-family: 'DM Mono', monospace;
+    background: rgba(139,92,246,.1); border: 1px solid rgba(139,92,246,.25);
+    color: var(--purple); padding: 1px 7px; border-radius: 12px;
+    white-space: nowrap;
+  }
+
+
+  /* ── FLUXO DO PACIENTE ── */
+  .flow-btn {
+    background: none; border: 1px solid rgba(8,145,178,.35);
+    border-radius: 6px; padding: 2px 8px; font-size: .63rem;
+    font-family: 'DM Mono', monospace; color: var(--accent2);
+    cursor: pointer; transition: all .15s; white-space: nowrap; margin-left: 4px;
+  }
+  .flow-btn:hover { background: var(--accent2); color: #fff; border-color: var(--accent2); }
+  .flow-btn.has-steps { background: rgba(8,145,178,.1); border-color: var(--accent2); }
+
+  /* Modal overlay */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0; z-index: 10000;
+    background: rgba(10,14,26,.55); backdrop-filter: blur(4px);
+    align-items: center; justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal-box {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 20px; padding: 2rem; max-width: 520px; width: 95%;
+    box-shadow: 0 20px 60px rgba(0,0,0,.18);
+    animation: slideUp .2s ease;
+  }
+  @keyframes slideUp { from { transform:translateY(20px); opacity:0; } to { transform:translateY(0); opacity:1; } }
+  .modal-header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:1.25rem; }
+  .modal-title { font-size:1rem; font-weight:800; }
+  .modal-sub { font-size:.72rem; font-family:'DM Mono',monospace; color:var(--muted); margin-top:2px; }
+  .modal-close { background:var(--surface2); border:1px solid var(--border); border-radius:8px; width:32px; height:32px; cursor:pointer; font-size:1rem; display:flex; align-items:center; justify-content:center; transition:all .15s; flex-shrink:0; }
+  .modal-close:hover { background:var(--red); color:#fff; border-color:var(--red); }
+
+  /* Steps */
+  .steps-list { display:flex; flex-direction:column; gap:.6rem; margin-bottom:1.25rem; }
+  .step-row {
+    display:flex; align-items:center; gap:.9rem;
+    padding:.75rem 1rem; border-radius:10px;
+    border:1.5px solid var(--border); background:var(--surface2);
+    cursor:pointer; transition:all .15s; user-select:none;
+  }
+  .step-row.done { background:rgba(5,150,105,.07); border-color:rgba(5,150,105,.3); }
+  .step-row.done .step-label { color:var(--green); }
+  .step-row:hover:not(.done) { border-color:var(--accent); }
+  .step-check {
+    width:22px; height:22px; border-radius:50%; border:2px solid var(--border);
+    display:flex; align-items:center; justify-content:center;
+    font-size:.8rem; flex-shrink:0; transition:all .15s; background:var(--surface);
+  }
+  .step-row.done .step-check { background:var(--green); border-color:var(--green); color:#fff; }
+  .step-label { font-size:.85rem; font-weight:600; flex:1; }
+  .step-meta { font-size:.65rem; font-family:'DM Mono',monospace; color:var(--muted); margin-top:2px; }
+  .step-time { font-size:.63rem; font-family:'DM Mono',monospace; color:var(--muted); white-space:nowrap; }
+
+  /* Progress bar */
+  .flow-progress-wrap { margin-bottom:1.25rem; }
+  .flow-progress-label { display:flex; justify-content:space-between; font-size:.7rem; font-family:'DM Mono',monospace; color:var(--muted); margin-bottom:.4rem; }
+  .flow-bar-bg { height:6px; background:var(--border); border-radius:3px; }
+  .flow-bar { height:6px; border-radius:3px; background:linear-gradient(90deg,var(--accent),var(--green)); transition:width .4s ease; }
+
+  /* mini pill shown in table */
+  .flow-pill {
+    display:inline-flex; align-items:center; gap:3px;
+    font-size:.6rem; font-family:'DM Mono',monospace;
+    padding:1px 7px; border-radius:12px; white-space:nowrap; margin-left:4px;
+    background:rgba(8,145,178,.1); border:1px solid rgba(8,145,178,.25); color:var(--accent2);
+  }
+  .flow-pill.complete { background:rgba(5,150,105,.1); border-color:rgba(5,150,105,.3); color:var(--green); }
+
+
+  /* ── MOTIVO AIH ── */
+  .motivo-wrap { margin-top:.75rem; padding:.85rem 1rem; background:var(--surface2); border:1px solid var(--border); border-radius:10px; }
+  .motivo-wrap label { display:block; font-size:.68rem; font-weight:700; text-transform:uppercase; letter-spacing:.8px; color:var(--muted); margin-bottom:.5rem; }
+  .motivo-select {
+    width:100%; padding:.55rem .8rem;
+    background:var(--surface); border:1.5px solid var(--border);
+    border-radius:8px; font-family:'Syne',sans-serif; font-size:.82rem;
+    color:var(--text); outline:none; cursor:pointer;
+    transition:border-color .15s;
+  }
+  .motivo-select:focus { border-color:var(--accent); }
+  .motivo-tag {
+    display:inline-flex; align-items:center; gap:4px;
+    font-size:.62rem; font-family:'DM Mono',monospace;
+    background:rgba(37,99,235,.08); border:1px solid rgba(37,99,235,.2);
+    color:var(--accent); padding:2px 8px; border-radius:12px; margin-top:.4rem;
+    flex-wrap:wrap;
+  }
+
+
+  /* ── SER / PENDÊNCIAS ── */
+  .ser-card {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 12px; padding: .85rem 1rem;
+    display: flex; flex-direction: column; gap: .4rem;
+  }
+  .ser-card:hover { border-color: rgba(37,99,235,.3); }
+  .ser-card-top { display:flex; justify-content:space-between; align-items:flex-start; gap:.5rem; }
+  .ser-nome { font-weight: 700; font-size: .88rem; }
+  .ser-sit {
+    font-size: .62rem; font-family: 'DM Mono', monospace;
+    padding: 2px 8px; border-radius: 12px; white-space: nowrap; font-weight: 600;
+  }
+  .ser-sit.fila     { background:rgba(37,99,235,.1);  color:var(--accent);  border:1px solid rgba(37,99,235,.25); }
+  .ser-sit.reservado{ background:rgba(217,119,6,.1);  color:var(--yellow);  border:1px solid rgba(217,119,6,.25); }
+  .ser-sit.internado{ background:rgba(5,150,105,.1);  color:var(--green);   border:1px solid rgba(5,150,105,.25); }
+  .ser-sit.cancelado{ background:rgba(220,38,38,.08); color:var(--red);     border:1px solid rgba(220,38,38,.2);  }
+  .ser-meta { font-size:.7rem; font-family:'DM Mono',monospace; color:var(--muted); }
+  .ser-espec { font-size:.78rem; color:var(--text); }
+  .ser-destino { font-size:.7rem; font-family:'DM Mono',monospace; color:var(--accent2); font-weight:600; }
+  .ser-obs { font-size:.72rem; color:var(--muted); border-left:3px solid var(--border); padding-left:.6rem; margin-top:.2rem; }
+  .ser-actions { display:flex; gap:4px; margin-top:.3rem; }
+  .ser-list-wrap { display:flex; flex-direction:column; gap:.6rem; max-height:560px; overflow-y:auto; }
+
+  @media(max-width:900px) {
+    .hero-grid { grid-template-columns:repeat(2,1fr); }
+    .occ-grid { grid-template-columns:repeat(2,1fr); }
+    .bottom-grid { grid-template-columns:1fr; }
+    .nir-layout { grid-template-columns:1fr; }
+  }
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+  const SUPABASE_URL = 'https://wdbymqpgfqjckojnqyii.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_N_ASLaJV5y16WCtep51whg_KXHfIpDK';
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+</script>
+</head>
+<body>
+<div class="wrapper">
+
+  <!-- HEADER -->
+  <header>
+    <div class="logo-area">
+      <div class="logo-icon">🏥</div>
+      <div class="logo-text">
+        <h1>Dashboard de Leitos</h1>
+        <p>HOSPITAL ALCIDES CARNEIRO — NIR / Regulação</p>
+      </div>
+    </div>
+    <div class="header-meta">
+      <div class="date" id="clock">—</div>
+      <div class="live-badge" id="syncBadge"><span class="live-dot"></span> CONECTANDO…</div>
+    </div>
+  </header>
+
+  <!-- NAV TABS -->
+  <div class="nav-tabs">
+    <div class="nav-tab active" id="tab-dashboard" onclick="switchPage('dashboard')">📊 Dashboard</div>
+    <div class="nav-tab" id="tab-nir" onclick="switchPage('nir')">✏️ Cadastro NIR</div>
+    <div class="nav-tab" id="tab-ser" onclick="switchPage('ser')">🔁 Pendências / SER</div>
+  </div>
+
+  <!-- ══════════════════ PAGE: DASHBOARD ══════════════════ -->
+  <div class="page active" id="page-dashboard">
+
+    <!-- HERO -->
+    <div class="hero-grid">
+      <div class="hero-card blue">
+        <div class="hero-label">Total de Leitos</div>
+        <div class="hero-value" id="h-total">264</div>
+        <div class="hero-sub">Capacidade instalada</div>
+        <div class="hero-bar-bg"><div class="hero-bar" style="width:100%;background:var(--accent)"></div></div>
+      </div>
+      <div class="hero-card red">
+        <div class="hero-label">Ocupados</div>
+        <div class="hero-value" id="h-ocup">—</div>
+        <div class="hero-sub" id="h-ocup-sub">—</div>
+        <div class="hero-bar-bg"><div class="hero-bar bar-full" id="h-ocup-bar" style="width:0%"></div></div>
+      </div>
+      <div class="hero-card green">
+        <div class="hero-label">Vagos</div>
+        <div class="hero-value" id="h-vagos">49</div>
+        <div class="hero-sub">Leitos disponíveis</div>
+        <div class="hero-bar-bg"><div class="hero-bar bar-low" style="width:18.6%"></div></div>
+      </div>
+      <div class="hero-card yellow">
+        <div class="hero-label">Cadastros NIR</div>
+        <div class="hero-value" id="h-nir">0</div>
+        <div class="hero-sub">Pacientes registrados</div>
+        <div class="hero-bar-bg"><div class="hero-bar bar-high" id="h-nir-bar" style="width:0%"></div></div>
+      </div>
+    </div>
+
+    <!-- OCCUPANCY -->
+    <div class="section-header">
+      <span class="section-title">Ocupação por Setor</span>
+      <div class="section-line"></div>
+    </div>
+    <div class="occ-grid" id="occGrid"></div>
+
+    <!-- PATIENT TABLE -->
+    <div class="section-header">
+      <span class="section-title">Pacientes Internados</span>
+      <div class="section-line"></div>
+    </div>
+    <div class="table-wrap">
+      <div class="table-toolbar">
+        <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;">
+          <div class="search-box">
+            <span style="color:var(--muted);font-size:.8rem">🔍</span>
+            <input type="text" id="searchInput" placeholder="Buscar paciente, diagnóstico..." oninput="filterTable()">
+          </div>
+        </div>
+        <div class="filter-tabs" id="filterTabs">
+          <div class="tab active" onclick="setFilter('TODOS',this)">TODOS</div>
+          <div class="tab" onclick="setFilter('CMM',this)">CMM</div>
+          <div class="tab" onclick="setFilter('CMF',this)">CMF</div>
+          <div class="tab" onclick="setFilter('CCM',this)">CCM</div>
+          <div class="tab" onclick="setFilter('CCF',this)">CCF</div>
+          <div class="tab" onclick="setFilter('UTI',this)">UTI</div>
+          <div class="tab" onclick="setFilter('UPC',this)">UPC</div>
+          <div class="tab" onclick="setFilter('PED',this)">PED</div>
+          <div class="tab" onclick="setFilter('MAT',this)">MAT</div>
+          <div class="tab" onclick="setFilter('NIR',this)">✏️ NIR</div>
+          <div class="tab" onclick="setFilter('ONCO',this)">🎗 ONCO</div>
+          <div class="tab" style="background:rgba(220,38,38,.07);border-color:rgba(220,38,38,.25);color:var(--red);font-weight:700" id="tab-30d" onclick="setFilter('30DIAS',this)">🚨 +30 Dias</div>
+        </div>
+      </div>
+      <div style="overflow-x:auto">
+        <table id="patientTable">
+          <thead>
+            <tr>
+              <th>Setor</th><th>Leito</th><th>Paciente</th><th>Diagnóstico</th>
+              <th>Plano Terapêutico</th><th>Prev. Alta</th><th>D.I.</th><th>Dias</th><th>Perm.</th><th>Onco</th><th>Ações</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+      <div class="pagination">
+        <div class="page-info" id="pageInfo">—</div>
+        <button class="page-btn" onclick="prevPage()">← Anterior</button>
+        <div id="pageNums"></div>
+        <button class="page-btn" onclick="nextPage()">Próxima →</button>
+      </div>
+    </div>
+
+    <!-- BOTTOM -->
+    <div class="bottom-grid">
+      <div class="mini-card">
+        <h3>🔁 Pendências de Transferência / SER</h3>
+        <div class="pending-list" id="dashPendingList">
+          <div style="font-size:.78rem;color:var(--muted);text-align:center;padding:1rem 0">
+            Carregando pendências…
+          </div>
+        </div>
+        <button class="btn-secondary" style="margin-top:.75rem;padding:.45rem;font-size:.75rem" onclick="switchPage('ser')">
+          ➕ Gerenciar Pendências / SER
+        </button>
+      </div>
+      <div class="mini-card">
+        <h3>⚡ CTI Adulto — 10/10 ocupados</h3>
+        <div class="uti-slots" id="utiSlots"></div>
+        <div style="margin-top:1rem"><h3 style="margin-bottom:.75rem">⚡ UPC — 10/10 ocupados</h3><div class="uti-slots" id="upcSlots"></div></div>
+        <div style="margin-top:1rem;display:flex;gap:1.5rem;font-size:.72rem;font-family:'DM Mono',monospace;color:var(--muted)">
+          <span><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:rgba(220,38,38,0.4);margin-right:4px"></span>Ocupado</span>
+          <span><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:rgba(5,150,105,0.3);margin-right:4px"></span>Vago</span>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /page-dashboard -->
+
+  <!-- ══════════════════ PAGE: NIR ══════════════════ -->
+  <div class="page" id="page-nir">
+
+    <!-- LOGIN SCREEN -->
+    <div id="nirLogin" class="login-box">
+      <div class="form-card">
+        <div class="login-logo">🔐</div>
+        <h2 style="margin-bottom:.25rem">Acesso NIR</h2>
+        <p class="form-sub">Restrito ao Setor de Regulação</p>
+        <div class="field">
+          <label>Usuário</label>
+          <input type="text" id="loginUser" placeholder="Ex: nir.joana" autocomplete="username">
+        </div>
+        <div class="field">
+          <label>Senha</label>
+          <input type="password" id="loginPass" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
+        </div>
+        <button class="btn-primary" onclick="doLogin()">Entrar no sistema</button>
+        <p style="font-size:.7rem;color:var(--muted);margin-top:1rem;font-family:'DM Mono',monospace">Usuário: nir — Senha: nir123</p>
+      </div>
+    </div>
+
+    <!-- NIR PANEL (shown after login) -->
+    <div id="nirPanel" style="display:none">
+      <div class="nir-badge">✏️ Sessão NIR ativa — <span id="nirUserLabel"></span> &nbsp;|&nbsp; <span style="cursor:pointer;text-decoration:underline" onclick="doLogout()">Sair</span></div>
+
+      <div class="nir-layout">
+        <!-- FORM -->
+        <div class="form-card">
+          <h2 id="formTitle">➕ Novo Paciente</h2>
+          <p class="form-sub" id="formSub">Preencha os dados e salve para atualizar o dashboard</p>
+
+          <input type="hidden" id="editId">
+          <input type="hidden" id="editBaseKey">
+
+          <div class="field-row">
+            <div class="field">
+              <label>Setor *</label>
+              <select id="fSetor">
+                <option value="">Selecione...</option>
+                <option>CMM</option><option>CMF</option><option>CCM</option><option>CCF</option>
+                <option>UTI</option><option>UPC</option><option>PED</option><option>MAT</option>
+                <option>GO</option><option>UCINCA</option><option>UCINCO</option><option>UTI NEO</option><option>UTI INF</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Leito *</label>
+              <input type="text" id="fLeito" placeholder="Ex: 401">
+            </div>
+          </div>
+
+          <div class="field">
+            <label>Nome do Paciente *</label>
+            <input type="text" id="fNome" placeholder="Nome completo">
+          </div>
+
+          <div class="field">
+            <label>Diagnóstico *</label>
+            <input type="text" id="fDiag" placeholder="CID / descrição clínica">
+          </div>
+
+          <div class="field">
+            <label>Plano Terapêutico / Pendência</label>
+            <textarea id="fPlano" placeholder="Descreva o plano ou pendências..."></textarea>
+          </div>
+
+          <div class="field-row">
+            <div class="field">
+              <label>Data de Internação</label>
+              <input type="date" id="fDI">
+            </div>
+            <div class="field">
+              <label>Previsão de Alta</label>
+              <input type="date" id="fAlta">
+            </div>
+          </div>
+
+          <div class="field">
+            <label>Tempo de Permanência</label>
+            <select id="fPerm">
+              <option value="Verde">🟢 Curto (até 12 dias)</option>
+              <option value="Amarelo">🟡 Médio (13–14 dias)</option>
+              <option value="Vermelho">🔴 Longo (15+ dias)</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label>Paciente Oncológico?</label>
+            <div class="onco-toggle">
+              <div class="onco-opt">
+                <input type="radio" name="onco" id="oncoSim" value="sim">
+                <label for="oncoSim">🎗 SIM</label>
+              </div>
+              <div class="onco-opt no">
+                <input type="radio" name="onco" id="oncoNao" value="nao" checked>
+                <label for="oncoNao">✅ NÃO</label>
+              </div>
+            </div>
+          </div>
+
+          <button class="btn-primary" onclick="savePatient()">💾 Salvar no Dashboard</button>
+          <button class="btn-secondary" onclick="clearForm()">🔄 Limpar formulário</button>
+        </div>
+
+        <!-- RECENT RECORDS -->
+        <div class="form-card">
+          <h2>📋 Todos os Pacientes do Sistema</h2>
+          <p class="form-sub">Clique em ✏️ Editar para atualizar qualquer paciente no dashboard</p>
+          <div class="rec-search"><span style="color:var(--muted)">🔍</span><input type="text" id="recSearchInput" placeholder="Buscar por nome, leito, diagnóstico..." oninput="filterRecList()"></div>
+          <div style="display:flex;gap:.35rem;flex-wrap:wrap;margin-bottom:.75rem">
+            <button class="rec-tab active" onclick="setRecSector('TODOS',this)">TODOS</button>
+            <button class="rec-tab" onclick="setRecSector('CMM',this)">CMM</button>
+            <button class="rec-tab" onclick="setRecSector('CMF',this)">CMF</button>
+            <button class="rec-tab" onclick="setRecSector('CCM',this)">CCM</button>
+            <button class="rec-tab" onclick="setRecSector('CCF',this)">CCF</button>
+            <button class="rec-tab" onclick="setRecSector('UTI',this)">UTI</button>
+            <button class="rec-tab" onclick="setRecSector('UPC',this)">UPC</button>
+            <button class="rec-tab" onclick="setRecSector('PED',this)">PED</button>
+            <button class="rec-tab" onclick="setRecSector('MAT',this)">MAT</button>
+          </div>
+          <div class="rec-list" id="recList">
+            <div class="empty-state">
+              <div class="ei">📭</div>
+              <p>Nenhum paciente cadastrado ainda.<br>Use o formulário ao lado.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /page-nir -->
+
+
+
+  <!-- ══════════════════ PAGE: SER / PENDÊNCIAS ══════════════════ -->
+  <div class="page" id="page-ser">
+
+    <!-- Auth gate -->
+    <div id="serLogin" class="login-box">
+      <div class="form-card">
+        <div class="login-logo">🔐</div>
+        <h2 style="margin-bottom:.25rem">Acesso NIR — Pendências / SER</h2>
+        <p class="form-sub">Restrito ao Setor de Regulação</p>
+        <div class="field">
+          <label>Usuário</label>
+          <input type="text" id="serLoginUser" placeholder="Ex: nir.joana">
+        </div>
+        <div class="field">
+          <label>Senha</label>
+          <input type="password" id="serLoginPass" placeholder="••••••••" onkeydown="if(event.key==='Enter')doSerLogin()">
+        </div>
+        <button class="btn-primary" onclick="doSerLogin()">Entrar</button>
+        <p style="font-size:.7rem;color:var(--muted);margin-top:1rem;font-family:'DM Mono',monospace">Usuário: nir — Senha: nir123</p>
+      </div>
+    </div>
+
+    <!-- SER Panel -->
+    <div id="serPanel" style="display:none">
+      <div class="nir-badge">🔁 Pendências / SER — <span id="serUserLabel"></span> &nbsp;|&nbsp; <span style="cursor:pointer;text-decoration:underline" onclick="doSerLogout()">Sair</span></div>
+
+      <div class="nir-layout">
+
+        <!-- FORM -->
+        <div class="form-card">
+          <h2 id="serFormTitle">➕ Nova Pendência / SER</h2>
+          <p class="form-sub" id="serFormSub">Preencha os dados e salve para atualizar o painel</p>
+          <input type="hidden" id="serEditId">
+
+          <div class="field-row">
+            <div class="field">
+              <label>Nome do Paciente *</label>
+              <input type="text" id="sNome" placeholder="Nome completo">
+            </div>
+            <div class="field">
+              <label>Setor *</label>
+              <select id="sSetor">
+                <option value="">Selecione...</option>
+                <option>CMM</option><option>CMF</option><option>CCM</option><option>CCF</option>
+                <option>UTI</option><option>UPC</option><option>PED</option><option>MAT</option>
+                <option>GO</option><option>PU</option><option>UCINCA</option><option>UCINCO</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="field">
+            <label>Leito</label>
+            <input type="text" id="sLeito" placeholder="Ex: 401">
+          </div>
+
+          <div class="field">
+            <label>Especialidade / Motivo da Transferência *</label>
+            <input type="text" id="sEspec" placeholder="Ex: Hematologia, Cirurgia Cardíaca...">
+          </div>
+
+          <div class="field">
+            <label>Unidade de Destino *</label>
+            <select id="sDestino">
+              <option value="">Selecione...</option>
+              <option>HUPE</option>
+              <option>HUCFF</option>
+              <option>HAC</option>
+              <option>HEMORIO</option>
+              <option>INCA</option>
+              <option>INTO</option>
+              <option>HGB</option>
+              <option>HF</option>
+              <option>HMMC</option>
+              <option>HMNSE</option>
+              <option>Outra unidade</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label>Situação *</label>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem">
+              <label style="display:flex;align-items:center;gap:.5rem;font-size:.83rem;font-weight:600;text-transform:none;letter-spacing:0;cursor:pointer;padding:.5rem .75rem;border-radius:8px;border:1.5px solid var(--border);background:var(--surface2);transition:all .15s" id="sit-fila-lbl">
+                <input type="radio" name="sSit" id="sit-fila" value="Em Fila" onchange="updateSitLabels()"> 🔵 Em Fila
+              </label>
+              <label style="display:flex;align-items:center;gap:.5rem;font-size:.83rem;font-weight:600;text-transform:none;letter-spacing:0;cursor:pointer;padding:.5rem .75rem;border-radius:8px;border:1.5px solid var(--border);background:var(--surface2);transition:all .15s" id="sit-res-lbl">
+                <input type="radio" name="sSit" id="sit-res" value="Reservado" onchange="updateSitLabels()"> 🟡 Reservado
+              </label>
+              <label style="display:flex;align-items:center;gap:.5rem;font-size:.83rem;font-weight:600;text-transform:none;letter-spacing:0;cursor:pointer;padding:.5rem .75rem;border-radius:8px;border:1.5px solid var(--border);background:var(--surface2);transition:all .15s" id="sit-int-lbl">
+                <input type="radio" name="sSit" id="sit-int" value="Internado" onchange="updateSitLabels()"> 🟢 Internado
+              </label>
+              <label style="display:flex;align-items:center;gap:.5rem;font-size:.83rem;font-weight:600;text-transform:none;letter-spacing:0;cursor:pointer;padding:.5rem .75rem;border-radius:8px;border:1.5px solid var(--border);background:var(--surface2);transition:all .15s" id="sit-can-lbl">
+                <input type="radio" name="sSit" id="sit-can" value="Cancelado" onchange="updateSitLabels()"> 🔴 Cancelado
+              </label>
+            </div>
+          </div>
+
+          <div class="field">
+            <label>Data de Inserção</label>
+            <input type="date" id="sData">
+          </div>
+
+          <div class="field">
+            <label>Observações / Pendências</label>
+            <textarea id="sObs" placeholder="Descreva pendências, contatos feitos, próximos passos..."></textarea>
+          </div>
+
+          <button class="btn-primary" onclick="saveSer()">💾 Salvar Pendência</button>
+          <button class="btn-secondary" onclick="clearSerForm()">🔄 Limpar</button>
+        </div>
+
+        <!-- LIST -->
+        <div class="form-card">
+          <h2>📋 Pendências Cadastradas</h2>
+          <p class="form-sub" id="serCountLabel">0 registros</p>
+
+          <!-- search + filters -->
+          <div class="rec-search" style="margin-bottom:.6rem">
+            <span style="color:var(--muted)">🔍</span>
+            <input type="text" id="serSearchInput" placeholder="Buscar por nome, especialidade, destino..." oninput="renderSerList()">
+          </div>
+          <div style="display:flex;gap:.35rem;flex-wrap:wrap;margin-bottom:.75rem" id="serSitTabs">
+            <button class="rec-tab active" onclick="setSerFilter('TODOS',this)">TODOS</button>
+            <button class="rec-tab" onclick="setSerFilter('Em Fila',this)">🔵 Em Fila</button>
+            <button class="rec-tab" onclick="setSerFilter('Reservado',this)">🟡 Reservado</button>
+            <button class="rec-tab" onclick="setSerFilter('Internado',this)">🟢 Internado</button>
+            <button class="rec-tab" onclick="setSerFilter('Cancelado',this)">🔴 Cancelado</button>
+          </div>
+
+          <div class="rec-list" id="serList">
+            <div class="empty-state"><div class="ei">📭</div><p>Nenhuma pendência cadastrada.<br>Use o formulário ao lado.</p></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div><!-- /page-ser -->
+
+  <!-- FLOW MODAL -->
+  <div class="modal-overlay" id="flowModal" onclick="closeFlowModal(event)">
+    <div class="modal-box" id="flowBox">
+      <div class="modal-header">
+        <div>
+          <div class="modal-title" id="flowModalTitle">Fluxo do Paciente</div>
+          <div class="modal-sub" id="flowModalSub"></div>
+        </div>
+        <button class="modal-close" onclick="closeFlowModal()">✕</button>
+      </div>
+      <div class="flow-progress-wrap">
+        <div class="flow-progress-label">
+          <span>Progresso</span>
+          <span id="flowProgressTxt">0 / 5 etapas</span>
+        </div>
+        <div class="flow-bar-bg"><div class="flow-bar" id="flowBar" style="width:0%"></div></div>
+      </div>
+      <div class="steps-list" id="flowStepsList"></div>
+      <button class="btn-secondary" onclick="closeFlowModal()" style="margin-top:0">Fechar</button>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <footer>HOSPITAL ALCIDES CARNEIRO · Petrópolis–RJ · Dashboard NIR · <span id="year"></span></footer>
+</div>
+
+
+<script>
+// ═══════════════════════════════════════════════════════════
+// DATA
+// ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
+const sectors = [
+  {name:'Clínica Médica Feminina',   vagos:0, bloq:8,  ocup:22,total:30},
+  {name:'Clínica Médica Masculina',  vagos:0, bloq:3,  ocup:28,total:31},
+  {name:'Clín. Cirúrgica Masculina', vagos:6, bloq:0,  ocup:21,total:27},
+  {name:'Clín. Cirúrgica Feminina',  vagos:1, bloq:0,  ocup:27,total:28},
+  {name:'Ginecologia',               vagos:4, bloq:0,  ocup:5, total:9 },
+  {name:'Maternidade',               vagos:13,bloq:0,  ocup:26,total:39},
+  {name:'Centro Obstétrico',         vagos:4, bloq:0,  ocup:6, total:10},
+  {name:'Pediatria',                 vagos:10,bloq:0,  ocup:17,total:27},
+  {name:'Pediatria Isolamento',      vagos:1, bloq:0,  ocup:5, total:6 },
+  {name:'Pediatria UTI Resp.',       vagos:1, bloq:0,  ocup:4, total:5 },
+  {name:'Pediatria Cirúrgica',       vagos:1, bloq:0,  ocup:2, total:3 },
+  {name:'UCINCA — Albergue',         vagos:3, bloq:0,  ocup:4, total:6 },
+  {name:'UCINCO (Intermediária)',    vagos:3, bloq:0,  ocup:7, total:10},
+  {name:'UTI Neo Natal',             vagos:1, bloq:0,  ocup:9, total:10},
+  {name:'UTI Infantil',              vagos:1, bloq:0,  ocup:2, total:3 },
+  {name:'Unidade Pós Cirúrgica',     vagos:0, bloq:0,  ocup:10,total:10},
+  {name:'CTI Adulto',                vagos:0, bloq:0,  ocup:10,total:10},
+];
+
+// Base patients from spreadsheet
+const basePats = [
+  {s:'CMM',l:'401',n:'Marcio Cerqueira',d:'Neoplasia dos Ossos',pl:'',alta:'',di:'22/04',perm:'Verde',onco:false,src:'base'},
+  {s:'CMM',l:'402',n:'Cilas Albernaz da Silva',d:'Neo Pulmão',pl:'',alta:'',di:'22/04',perm:'Amarelo',onco:false,src:'base'},
+  {s:'CMM',l:'403',n:'Raimundo Pereira da Silva',d:'Pancitopenia',pl:'',alta:'',di:'06/04',perm:'Vermelho',onco:false,src:'base'},
+  {s:'CMM',l:'404',n:'Luiz da Silva',d:'Insuf. Renal Aguda',pl:'Aguarda marcação de cirurgia',alta:'',di:'10/03',perm:'Vermelho',onco:false,src:'base'},
+  {s:'CMM',l:'406',n:'Jorge Eduardo Leal Terra',d:'Neo Maligna Cabeça e Face',pl:'',alta:'',di:'25/03',perm:'Vermelho',onco:false,src:'base'},
+  {s:'CMM',l:'407',n:'Flavio Lucio Knipp',d:'Erisipela Bolhosa',pl:'',alta:'',di:'29/03',perm:'Amarelo',onco:false,src:'base'},
+  {s:'CMM',l:'408',n:'Jorge Luiz da Costa',d:'Mieloma Múltiplo',pl:'',alta:'',di:'28/03',perm:'Vermelho',onco:false,src:'base'},
+  {s:'CMM',l:'409',n:'Oseias dos Santos Portugal',d:'TVP + Neoplasia Cerebral',pl:'RNM de crânio realizada',alta:'',di:'18/03',perm:'Vermelho',onco:false,src:'base'},
+  {s:'CMM',l:'410',n:'Marco Antonio de Oliveira Pedro',d:'Neoplasia Maligna Laringe',pl:'',alta:'',di:'15/02',perm:'Vermelho',onco:false,src:'base'},
+  {s:'CMM',l:'411',n:'Valdir Jose Francisco',d:'Hematêmese',pl:'Em uso de ATB — ITU',alta:'',di:'16/03',perm:'Vermelho',onco:false,src:'base'},
+  {s:'CMM',l:'412',n:'Celso Fidelis',d:'DAOP',pl:'',alta:'',di:'07/04',perm:'Verde',onco:true,src:'base'},
+  {s:'CMM',l:'415',n:'Anizio Jose da Costa',d:'Hemorrafia Gastrointestinal',pl:'Pós op da vascular',alta:'',di:'22/03',perm:'Vermelho',onco:false,src:'base'},
+  {s:'CMM',l:'416',n:'Jamil Jose',d:'Insuf. Arterial + IRC',pl:'Aguarda reabordagem vascular',alta:'',di:'16/03',perm:'Vermelho',onco:false,src:'base'},
+  {s:'CMM',l:'418',n:'Aldeir Costa Carvalho',d:'Metástase Hepática',pl:'Aguarda colonoscopia',alta:'',di:'23/02',perm:'Vermelho',onco:false,src:'base'},
+  {s:'CMM',l:'419',n:'Alex Sandro Cardoso Gonçalves',d:'Anemia Hemolítica',pl:'Biópsia hepática programada',alta:'',di:'21/01',perm:'Vermelho',onco:false,src:'base'},
+  {s:'CMM',l:'420',n:'Joao Claudino da Silva Neto',d:'Neoplasia de Próstata + Angina',pl:'Hormônio terapia durante internação',alta:'',di:'28/01',perm:'Vermelho',onco:false,src:'base'},
+  {s:'CMM',l:'423',n:'Luis Henrique Ferreira',d:'DAOP',pl:'',alta:'',di:'02/04',perm:'Amarelo',onco:false,src:'base'},
+  {s:'CMM',l:'424',n:'Carlos Augusto Saldanha da Silva',d:'DAOP',pl:'Amputação de pododáctilo',alta:'',di:'29/03',perm:'Amarelo',onco:false,src:'base'},
+  {s:'CMM',l:'425',n:'Adao Donizete Sanseverino',d:'Pé Diabético',pl:'Pós op — má evolução',alta:'',di:'16/03',perm:'Vermelho',onco:false,src:'base'},
+  {s:'CMM',l:'426',n:'Marco Adriano Alexandre',d:'Pé Diabético',pl:'Tratando osteomielite',alta:'',di:'27/02',perm:'Vermelho',onco:false,src:'base'},
+  {s:'CMM',l:'427',n:'Leandro da Conceicao Lima',d:'Pé Diabético',pl:'Amputação supra patelar',alta:'',di:'19/03',perm:'Vermelho',onco:false,src:'base'},
+  {s:'CMM',l:'430',n:'Marcio Weber',d:'Derrame Pericárdico',pl:'',alta:'',di:'26/03',perm:'Amarelo',onco:false,src:'base'},
+  {s:'CMF',l:'601',n:'Marcia Arantes Teixeira Carvalho',d:'CA de Fígado',pl:'',alta:'',di:'28/03',perm:'Verde',onco:false,src:'base'},
+  {s:'CMF',l:'602',n:'Lucia Terezinha de Oliveira Pavao',d:'Neo de Vulva, PNM, Cistite',pl:'Em uso de ATB por PNM',alta:'',di:'20/03',perm:'Amarelo',onco:false,src:'base'},
+  {s:'CMF',l:'604',n:'Luciane Mathias Apolinario',d:'Neoplasias Hematológicas',pl:'Aguarda histopatológico',alta:'22/04',di:'13/03',perm:'Vermelho',onco:false,src:'base'},
+  {s:'CMF',l:'607',n:'Luciene Pereira da Silva Aguiar',d:'CA de Mama',pl:'Aguarda rádio no CTO',alta:'15/04',di:'10/02',perm:'Vermelho',onco:false,src:'base'},
+  {s:'CMF',l:'612',n:'Ivanilda Souza Ferreira',d:'Mielodisplasia',pl:'',alta:'',di:'30/03',perm:'Amarelo',onco:false,src:'base'},
+  {s:'CMF',l:'613',n:'Rosa Maria Chagas Cardozo',d:'Carcinomatose Peritoneal',pl:'Pleurodese realizada',alta:'',di:'26/03',perm:'Amarelo',onco:false,src:'base'},
+  {s:'CMF',l:'614',n:'Sonia Lucia dos Santos Barboza',d:'AVE Isquêmico',pl:'',alta:'',di:'29/03',perm:'Amarelo',onco:false,src:'base'},
+  {s:'CMF',l:'615',n:'Maria Amalia Felizardo da Silva',d:'Neoplasia de Mama',pl:'',alta:'',di:'30/03',perm:'Amarelo',onco:false,src:'base'},
+  {s:'CMF',l:'618',n:'Maria Eva Botelho',d:'Neoplasia Pulmonar',pl:'',alta:'',di:'29/03',perm:'Amarelo',onco:false,src:'base'},
+  {s:'CMF',l:'619',n:'Minalda Neves da Silva',d:'Dispneia',pl:'',alta:'',di:'13/03',perm:'Vermelho',onco:false,src:'base'},
+  {s:'CMF',l:'622',n:'Aparecida Salvina Germana Saraiva',d:'Neoplasia Renal',pl:'Fratura de fêmur + PNM',alta:'',di:'28/03',perm:'Amarelo',onco:false,src:'base'},
+  {s:'CMF',l:'625',n:'Maria Aparecida Alves da Cruz',d:'Cirrose',pl:'',alta:'',di:'04/04',perm:'Verde',onco:false,src:'base'},
+  {s:'CMF',l:'626',n:'Rosimere de Moura Sant Ana',d:'Neoplasia Gástrica',pl:'',alta:'',di:'19/03',perm:'Vermelho',onco:false,src:'base'},
+  {s:'CMF',l:'628',n:'Maria de Lourdes dos Reis',d:'Adenocarcinoma Gástrico',pl:'',alta:'',di:'04/04',perm:'Verde',onco:false,src:'base'},
+  {s:'CMF',l:'630',n:'Rita de Cassia Nunes da Costa',d:'Neoplasia de Endométrio',pl:'Aguarda colonoscopia',alta:'',di:'23/02',perm:'Vermelho',onco:false,src:'base'},
+  {s:'UTI',l:'01',n:'Waldir Malaquias Tavares',d:'IAM',pl:'',alta:'',di:'05/03',perm:'Vermelho',onco:false,src:'base'},
+  {s:'UTI',l:'02',n:'Fabio da Silva',d:'Sepse Urinária',pl:'',alta:'',di:'02/04',perm:'Amarelo',onco:false,src:'base'},
+  {s:'UTI',l:'03',n:'Sinval Fortunato da Silva',d:'Pneumoperitônio',pl:'',alta:'',di:'26/03',perm:'Vermelho',onco:false,src:'base'},
+  {s:'UTI',l:'04',n:'Sebastiao Roberto Siqueira',d:'Acidose',pl:'',alta:'',di:'13/03',perm:'Vermelho',onco:false,src:'base'},
+  {s:'UTI',l:'05',n:'Maria Auxiliadora Ribeiro Caetano',d:'TEP',pl:'',alta:'',di:'30/03',perm:'Amarelo',onco:false,src:'base'},
+  {s:'UTI',l:'06',n:'Ricardo Saldanha',d:'Choque Hipovolêmico',pl:'',alta:'',di:'19/03',perm:'Vermelho',onco:false,src:'base'},
+  {s:'UTI',l:'07',n:'Sidemar da Costa Silverio',d:'Hemorragia Digestiva',pl:'',alta:'',di:'21/03',perm:'Vermelho',onco:false,src:'base'},
+  {s:'UTI',l:'08',n:'Tereza da Aparecida dos Santos',d:'Diabetes Mellitus',pl:'',alta:'',di:'12/03',perm:'Vermelho',onco:false,src:'base'},
+  {s:'UTI',l:'09',n:'Silvio Carlos Manso',d:'Doença Vascular Periférica',pl:'',alta:'',di:'04/04',perm:'Verde',onco:false,src:'base'},
+  {s:'UTI',l:'10',n:'Dilcea Penha dos Santos Rabelo',d:'Hemorragia Digestiva',pl:'',alta:'',di:'17/03',perm:'Vermelho',onco:false,src:'base'},
+  {s:'UPC',l:'01',n:'Carlos Eduardo Alves Raimundo',d:'Suboclusão Intestinal',pl:'',alta:'',di:'13/03',perm:'Vermelho',onco:false,src:'base'},
+  {s:'UPC',l:'02',n:'Epifania Ladislau dos Santos',d:'Volvo de Sigmoide',pl:'',alta:'',di:'31/03',perm:'Amarelo',onco:false,src:'base'},
+  {s:'UPC',l:'03',n:'Ana Maria Neves',d:'Suboclusão Intestinal',pl:'',alta:'',di:'31/03',perm:'Amarelo',onco:false,src:'base'},
+  {s:'UPC',l:'04',n:'Lucia Terezinha de Oliveira Pavao',d:'Neo de Vulva, PNM, Cistite',pl:'Em uso de ATB',alta:'',di:'20/03',perm:'Vermelho',onco:false,src:'base'},
+  {s:'UPC',l:'05',n:'Ana Lucia Cabral da Silva',d:'DAOP + Tumor Renal',pl:'Aguarda nefrectomia',alta:'22/04',di:'13/03',perm:'Vermelho',onco:false,src:'base'},
+  {s:'UPC',l:'07',n:'Maria Adelia Barbosa',d:'Segmentectomia',pl:'',alta:'',di:'07/04',perm:'Verde',onco:false,src:'base'},
+  {s:'UPC',l:'08',n:'Luzia Oliveira de Souza',d:'TTO Insuficiência Arterial',pl:'',alta:'',di:'03/04',perm:'Verde',onco:false,src:'base'},
+  {s:'UPC',l:'09',n:'Talita Kling Trancoso de Sa Carvalho',d:'Esplenectomia',pl:'',alta:'',di:'05/04',perm:'Verde',onco:false,src:'base'},
+  {s:'UPC',l:'10',n:'Joao dos Passos de Deus',d:'Afecção da Pele',pl:'',alta:'',di:'09/03',perm:'Vermelho',onco:false,src:'base'},
+  {s:'CCM',l:'304',n:'Carlos Daniel Ferreira Bento',d:'Ferimento do Tórax',pl:'',alta:'',di:'23/03',perm:'Vermelho',onco:false,src:'base'},
+  {s:'CCM',l:'305',n:'Jacy da Rocha Branco',d:'Pneumotórax',pl:'',alta:'',di:'31/03',perm:'Amarelo',onco:false,src:'base'},
+  {s:'CCM',l:'307',n:'Sebastiao Berini da Cruz',d:'Pneumoperitônio',pl:'',alta:'',di:'26/03',perm:'Vermelho',onco:false,src:'base'},
+  {s:'CCM',l:'314',n:'Diego Henrique Coutinho',d:'Laparotomia Exploratória',pl:'Colono realizada, aguardando resultado',alta:'',di:'13/03',perm:'Vermelho',onco:false,src:'base'},
+  {s:'CCM',l:'315',n:'Gustavo Goncalves Penna Ribeiro',d:'Desbridamento de LPP',pl:'Aguarda hiperbárica + plástica',alta:'',di:'10/03',perm:'Vermelho',onco:false,src:'base'},
+  {s:'CCM',l:'316',n:'Adriano Sampaio Bastos',d:'Síndrome de Fournier',pl:'Aguarda avaliação da plástica',alta:'',di:'04/03',perm:'Vermelho',onco:false,src:'base'},
+  {s:'CCM',l:'317',n:'Josias Ferreira Gomes',d:'Neoplasia de Esôfago + Fístula',pl:'Avaliar abordagem cirúrgica',alta:'',di:'24/03',perm:'Vermelho',onco:false,src:'base'},
+  {s:'CCF',l:'560',n:'Monica Andrade da Silva Ribeiro',d:'Apendicite Aguda',pl:'Teste 6',alta:'30/05',di:'06/04',perm:'Verde',onco:false,src:'base'},
+  {s:'CCF',l:'561',n:'Juliene Genef Andrade de Oliveira',d:'Colecistite Aguda',pl:'',alta:'',di:'02/04',perm:'Amarelo',onco:false,src:'base'},
+  {s:'CCF',l:'573',n:'Adriana Cristina Esteves da Silva',d:'Choque Séptico',pl:'',alta:'',di:'21/03',perm:'Vermelho',onco:false,src:'base'},
+  {s:'CCF',l:'575',n:'Isabel Cristina da Silva Emiliano',d:'Estenose Pilórica',pl:'Dieta parenteral',alta:'',di:'21/01',perm:'Vermelho',onco:false,src:'base'},
+  {s:'PED',l:'101',n:'Samule Reis Rodrigues dos Santos',d:'Gastroenterite',pl:'',alta:'',di:'07/04',perm:'Verde',onco:false,src:'base'},
+  {s:'PED',l:'102',n:'Vitoria da Silva Evangelista',d:'Anemia Falciforme',pl:'',alta:'',di:'07/04',perm:'Verde',onco:false,src:'base'},
+  {s:'PED',l:'103',n:'Mellany Oliveira',d:'Abcesso Periamigdaliano',pl:'',alta:'',di:'07/04',perm:'Verde',onco:false,src:'base'},
+  {s:'PED',l:'117',n:'Acsa Talita Archanjo Anecreto',d:'Pneumonia',pl:'',alta:'',di:'07/04',perm:'Verde',onco:false,src:'base'},
+  {s:'MAT',l:'501',n:'Amanda Gomes de Freitas Chwaigert',d:'Hipertensão Materna',pl:'',alta:'',di:'03/04',perm:'Verde',onco:false,src:'base'},
+  {s:'MAT',l:'504',n:'Vanessa Aparecida Rapozo de Sa',d:'Pré-Eclâmpsia',pl:'',alta:'',di:'06/04',perm:'Verde',onco:false,src:'base'},
+  {s:'MAT',l:'510',n:'Lavinia Teixeira Campos',d:'Cesariana',pl:'',alta:'',di:'07/04',perm:'Verde',onco:false,src:'base'},
+  {s:'MAT',l:'511',n:'Luana da Silva Dias',d:'Cesariana',pl:'',alta:'',di:'07/04',perm:'Verde',onco:false,src:'base'},
+  {s:'MAT',l:'536',n:'Cintia Coelho Gorni',d:'Sofrimento Fetal',pl:'',alta:'',di:'06/04',perm:'Verde',onco:false,src:'base'},
+];
+
+// ── NIR storage ──
+let nirPatients = [];
+let nextId = 1;
+let loggedIn = false;
+let currentUser = '';
+
+// baseEdits: key = "s_l", value = edited patient object
+let baseEdits = {};
+let aihSet = {};
+
+
+// ── Motivos de prorrogação AIH (DATASUS) ──
+const AIH_MOTIVOS = [
+  { id:'cir_cir',    label:'De Cirurgia para Cirurgia' },
+  { id:'obs_cir',    label:'De Obstetrícia para Cirurgia e vice-versa' },
+  { id:'cli_obs',    label:'De Clínica Médica para Obstetrícia' },
+  { id:'obs_obs',    label:'De Obstetrícia para Obstetrícia' },
+  { id:'obs_cli',    label:'De Obstetrícia para Clínica Médica' },
+  { id:'cir_cli',    label:'De Cirurgia para Clínica Médica' },
+  { id:'cli_cir',    label:'De Clínica Médica para Cirurgia' },
+  { id:'prol',       label:'Cuidados Prolongados, Psiquiatria, Reabilitação e Tuberculose' },
+  { id:'transpl',    label:'Intercorrências Pós Transplantes' },
+  { id:'poltr',      label:'Politraumatizado / Cirurgia Múltipla' },
+];
+
+// ── Patient flow tracking ──
+const FLOW_STEPS = [
+  { id:'aih_sol',   icon:'📋', label:'Prorrogação de AIH Solicitada',      desc:'Solicitação de prorrogação de AIH enviada ao SUS' },
+  { id:'aih_apr',   icon:'✅', label:'AIH Aprovada',         desc:'AIH autorizada pelo sistema' },
+  { id:'alta_med',  icon:'🩺', label:'Alta Médica Dada',     desc:'Médico assinou a alta do paciente' },
+  { id:'reg_conc',  icon:'📡', label:'Regulação Concluída',  desc:'Regulação finalizada no sistema' },
+  { id:'transferido',icon:'🚑',label:'Paciente Transferido', desc:'Paciente saiu do leito / transferido' },
+];
+let flowData = {}; // key = 'setor_leito', value = { stepId: { user, ts } }
+let activeFlowKey = null;
+
+ // key = 'setor_leito', value = { user, timestamp }
+
+
+// ═══════════════════════════════════════════════════════════
+// SUPABASE SYNC LAYER
+// ═══════════════════════════════════════════════════════════
+function setSyncBadge(state) {
+  const el = document.getElementById('syncBadge');
+  if (!el) return;
+  if (state === 'ok') {
+    el.innerHTML = '<span class="live-dot"></span> SINCRONIZADO';
+    el.style.color = 'var(--green)'; el.style.borderColor = 'rgba(5,150,105,.25)'; el.style.background='rgba(5,150,105,.08)';
+  } else if (state === 'error') {
+    el.innerHTML = '<span class="live-dot" style="background:var(--red)"></span> SEM CONEXÃO (offline)';
+    el.style.color = 'var(--red)'; el.style.borderColor = 'rgba(220,38,38,.25)'; el.style.background='rgba(220,38,38,.08)';
+  } else {
+    el.innerHTML = '<span class="live-dot"></span> CONECTANDO…';
+    el.style.color = 'var(--accent)'; el.style.borderColor = 'rgba(37,99,235,.25)'; el.style.background='rgba(37,99,235,.08)';
+  }
+}
+
+// ── Load everything from Supabase on startup ──
+async function loadAllFromSupabase() {
+  try {
+    const [pacRes, serRes, aihRes, fluxoRes] = await Promise.all([
+      sb.from('pacientes').select('*'),
+      sb.from('pendencias_ser').select('*').order('id', {ascending:true}),
+      sb.from('aih_solicitacoes').select('*'),
+      sb.from('fluxo_paciente').select('*'),
+    ]);
+
+    if (pacRes.error || serRes.error || aihRes.error || fluxoRes.error) {
+      console.error('Supabase load error', pacRes.error, serRes.error, aihRes.error, fluxoRes.error);
+      setSyncBadge('error');
+      return;
+    }
+
+    // ── pacientes: split into baseEdits (origem='base') and nirPatients (origem='nir') ──
+    baseEdits = {};
+    nirPatients = [];
+    let maxId = 0;
+    (pacRes.data || []).forEach(row => {
+      const obj = {
+        id: row.id,
+        s: row.setor, l: row.leito, n: row.nome, d: row.diagnostico,
+        pl: row.plano || '', alta: row.data_alta || '', di: row.data_int || '',
+        perm: row.permanencia || 'Verde', onco: !!row.onco,
+        src: row.origem, user: row.usuario || ''
+      };
+      if (row.origem === 'base') {
+        obj._baseKey = row.base_key;
+        baseEdits[row.base_key] = obj;
+      } else {
+        nirPatients.push(obj);
+      }
+      if (row.id > maxId) maxId = row.id;
+    });
+    nextId = maxId + 1;
+
+    // ── pendências SER ──
+    serPatients = (serRes.data || []).map(row => ({
+      id: row.id, nome: row.nome, setor: row.setor, leito: row.leito || '',
+      espec: row.especialidade, destino: row.destino, sit: row.situacao,
+      data: row.data_insercao || '', obs: row.observacoes || '',
+      user: row.usuario || '', ts: new Date(row.criado_em).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})
+    }));
+    let maxSerId = 0;
+    serPatients.forEach(p => { if (p.id > maxSerId) maxSerId = p.id; });
+    serNextId = maxSerId + 1;
+
+    // ── AIH ──
+    aihSet = {};
+    (aihRes.data || []).forEach(row => {
+      aihSet[row.base_key] = { user: row.usuario || 'NIR', ts: new Date(row.criado_em).toLocaleString('pt-BR'), motivo: row.motivo || '' };
+    });
+
+    // ── Fluxo ──
+    flowData = {};
+    (fluxoRes.data || []).forEach(row => {
+      if (!flowData[row.base_key]) flowData[row.base_key] = {};
+      if (row.step_id === 'aih_motivo') {
+        flowData[row.base_key]['aih_motivo'] = row.usuario; // motivo stored in usuario field for this special row
+      } else {
+        flowData[row.base_key][row.step_id] = {
+          user: row.usuario || 'NIR',
+          ts: new Date(row.criado_em).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})
+        };
+      }
+    });
+
+    setSyncBadge('ok');
+
+    // re-render everything
+    updateHeroNir();
+    renderTable();
+    renderDashPending();
+    if (document.getElementById('page-nir').classList.contains('active')) renderRecList();
+    if (document.getElementById('page-ser').classList.contains('active')) renderSerList();
+
+  } catch (err) {
+    console.error('Erro ao carregar do Supabase:', err);
+    setSyncBadge('error');
+  }
+}
+
+// ── Save / upsert a single paciente (base edit or NIR) ──
+async function syncPaciente(obj) {
+  try {
+    const row = {
+      base_key: obj._baseKey || null,
+      setor: obj.s, leito: obj.l, nome: obj.n, diagnostico: obj.d,
+      plano: obj.pl || '', data_alta: obj.alta || '', data_int: obj.di || '',
+      permanencia: obj.perm, onco: !!obj.onco,
+      origem: obj.src, usuario: obj.user || currentUser || '',
+      atualizado_em: new Date().toISOString()
+    };
+    if (obj.id) {
+      const { error } = await sb.from('pacientes').update(row).eq('id', obj.id);
+      if (error) throw error;
+    } else {
+      const { data, error } = await sb.from('pacientes').insert(row).select().single();
+      if (error) throw error;
+      obj.id = data.id;
+    }
+    setSyncBadge('ok');
+  } catch (err) {
+    console.error('Erro ao salvar paciente:', err);
+    setSyncBadge('error');
+  }
+}
+
+async function deletePacienteSupabase(id) {
+  try {
+    const { error } = await sb.from('pacientes').delete().eq('id', id);
+    if (error) throw error;
+    setSyncBadge('ok');
+  } catch (err) {
+    console.error('Erro ao excluir paciente:', err);
+    setSyncBadge('error');
+  }
+}
+
+async function deletePacienteByBaseKey(baseKey) {
+  try {
+    const { error } = await sb.from('pacientes').delete().eq('base_key', baseKey).eq('origem','base');
+    if (error) throw error;
+    setSyncBadge('ok');
+  } catch (err) {
+    console.error('Erro ao remover edição:', err);
+    setSyncBadge('error');
+  }
+}
+
+// ── SER sync ──
+async function syncSer(rec) {
+  try {
+    const row = {
+      nome: rec.nome, setor: rec.setor, leito: rec.leito || '',
+      especialidade: rec.espec, destino: rec.destino, situacao: rec.sit,
+      data_insercao: rec.data || '', observacoes: rec.obs || '',
+      usuario: rec.user || serCurrentUser || '',
+      atualizado_em: new Date().toISOString()
+    };
+    if (rec.id) {
+      const { error } = await sb.from('pendencias_ser').update(row).eq('id', rec.id);
+      if (error) throw error;
+    } else {
+      const { data, error } = await sb.from('pendencias_ser').insert(row).select().single();
+      if (error) throw error;
+      rec.id = data.id;
+    }
+    setSyncBadge('ok');
+  } catch (err) {
+    console.error('Erro ao salvar pendência SER:', err);
+    setSyncBadge('error');
+  }
+}
+
+async function deleteSerSupabase(id) {
+  try {
+    const { error } = await sb.from('pendencias_ser').delete().eq('id', id);
+    if (error) throw error;
+    setSyncBadge('ok');
+  } catch (err) {
+    console.error('Erro ao excluir pendência SER:', err);
+    setSyncBadge('error');
+  }
+}
+
+// ── AIH sync ──
+async function syncAih(baseKey, info) {
+  try {
+    const { error } = await sb.from('aih_solicitacoes').upsert({
+      base_key: baseKey, nome: info.nome || '', motivo: info.motivo || '', usuario: info.user || currentUser || 'NIR'
+    }, { onConflict: 'base_key' });
+    if (error) {
+      // unique constraint may not exist on base_key; fallback to delete+insert
+      await sb.from('aih_solicitacoes').delete().eq('base_key', baseKey);
+      await sb.from('aih_solicitacoes').insert({ base_key: baseKey, nome: info.nome || '', motivo: info.motivo || '', usuario: info.user || currentUser || 'NIR' });
+    }
+    setSyncBadge('ok');
+  } catch (err) {
+    console.error('Erro ao salvar AIH:', err);
+    setSyncBadge('error');
+  }
+}
+
+async function removeAihSupabase(baseKey) {
+  try {
+    const { error } = await sb.from('aih_solicitacoes').delete().eq('base_key', baseKey);
+    if (error) throw error;
+    setSyncBadge('ok');
+  } catch (err) {
+    console.error('Erro ao remover AIH:', err);
+    setSyncBadge('error');
+  }
+}
+
+// ── Fluxo sync ──
+async function syncFlowStep(baseKey, stepId, user) {
+  try {
+    const { error } = await sb.from('fluxo_paciente').insert({ base_key: baseKey, step_id: stepId, usuario: user || currentUser || 'NIR' });
+    if (error) throw error;
+    setSyncBadge('ok');
+  } catch (err) {
+    console.error('Erro ao salvar etapa do fluxo:', err);
+    setSyncBadge('error');
+  }
+}
+
+async function removeFlowStepSupabase(baseKey, stepId) {
+  try {
+    const { error } = await sb.from('fluxo_paciente').delete().eq('base_key', baseKey).eq('step_id', stepId);
+    if (error) throw error;
+    setSyncBadge('ok');
+  } catch (err) {
+    console.error('Erro ao remover etapa do fluxo:', err);
+    setSyncBadge('error');
+  }
+}
+
+async function syncFlowMotivo(baseKey, motivoId) {
+  try {
+    // store motivo as a special "row" with step_id = 'aih_motivo' and motivo value in usuario field
+    await sb.from('fluxo_paciente').delete().eq('base_key', baseKey).eq('step_id','aih_motivo');
+    if (motivoId) {
+      const { error } = await sb.from('fluxo_paciente').insert({ base_key: baseKey, step_id:'aih_motivo', usuario: motivoId });
+      if (error) throw error;
+    }
+    // also update aih_solicitacoes.motivo if a row exists
+    await sb.from('aih_solicitacoes').update({ motivo: motivoId || '' }).eq('base_key', baseKey);
+    setSyncBadge('ok');
+  } catch (err) {
+    console.error('Erro ao salvar motivo:', err);
+    setSyncBadge('error');
+  }
+}
+
+// ── combined list: base (with overrides) + NIR new entries ──
+function allPatients() {
+  const bases = basePats.map(p => {
+    const key = p.s + '_' + p.l;
+    return baseEdits[key] ? {...baseEdits[key], _baseKey: key} : {...p, _baseKey: key};
+  });
+  return [...bases, ...nirPatients];
+}
+
+// ═══════════════════════════════════════════════════════════
+// NAV
+// ═══════════════════════════════════════════════════════════
+function switchPage(p) {
+  document.querySelectorAll('.page').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
+  document.getElementById('page-' + p).classList.add('active');
+  document.getElementById('tab-' + p).classList.add('active');
+  if (p === 'nir') renderRecList();
+  if (p === 'ser') { renderSerList(); renderDashPending(); }
+}
+
+// ═══════════════════════════════════════════════════════════
+// AUTH
+// ═══════════════════════════════════════════════════════════
+function doLogin() {
+  const u = document.getElementById('loginUser').value.trim();
+  const p = document.getElementById('loginPass').value;
+  if (u.toLowerCase().startsWith('nir') && p === 'nir123') {
+    loggedIn = true;
+    currentUser = u;
+    document.getElementById('nirLogin').style.display = 'none';
+    document.getElementById('nirPanel').style.display = 'block';
+    document.getElementById('nirUserLabel').textContent = u;
+    showToast('✅ Bem-vindo, ' + u + '!', 'success');
+    renderRecList();
+  } else {
+    showToast('❌ Usuário ou senha incorretos', 'error');
+    document.getElementById('loginPass').value = '';
+  }
+}
+
+function doLogout() {
+  loggedIn = false; currentUser = '';
+  document.getElementById('nirLogin').style.display = 'block';
+  document.getElementById('nirPanel').style.display = 'none';
+  document.getElementById('loginUser').value = '';
+  document.getElementById('loginPass').value = '';
+  clearForm();
+}
+
+// ═══════════════════════════════════════════════════════════
+// LOAD ANY PATIENT INTO FORM (base or NIR)
+// ═══════════════════════════════════════════════════════════
+function loadPatientToForm(p) {
+  // p may arrive as object (from allPatients) or from onclick with JSON string
+  if (typeof p === 'string') p = JSON.parse(p.replace(/'/g, '"'));
+
+  document.getElementById('editId').value     = p.src === 'nir' ? p.id : '';
+  document.getElementById('editBaseKey').value = p._baseKey || '';
+  document.getElementById('fSetor').value = p.s;
+  document.getElementById('fLeito').value = p.l;
+  document.getElementById('fNome').value  = p.n;
+  document.getElementById('fDiag').value  = p.d;
+  document.getElementById('fPlano').value = p.pl || '';
+  document.getElementById('fPerm').value  = p.perm;
+  // dates: try to parse dd/mm or leave blank
+  document.getElementById('fDI').value   = parseDateField(p.di);
+  document.getElementById('fAlta').value = parseDateField(p.alta);
+  document.querySelector(`input[name="onco"][value="${p.onco?'sim':'nao'}"]`).checked = true;
+  document.getElementById('formTitle').textContent = '✏️ Editar: ' + p.n.split(' ')[0];
+  document.getElementById('formSub').textContent   = 'Setor ' + p.s + ' · Leito ' + p.l + ' — salve para atualizar o dashboard';
+  document.querySelector('.form-card').scrollIntoView({behavior:'smooth'});
+}
+
+function parseDateField(s) {
+  if (!s || s === '—') return '';
+  // dd/mm or dd/mm/yyyy
+  const m = s.match(/(\d{2})\/(\d{2})(?:\/(\d{4}))?/);
+  if (!m) return '';
+  const year = m[3] || new Date().getFullYear();
+  return `${year}-${m[2]}-${m[1]}`;
+}
+
+// ═══════════════════════════════════════════════════════════
+// SAVE
+// ═══════════════════════════════════════════════════════════
+function savePatient() {
+  const setor  = document.getElementById('fSetor').value.trim();
+  const leito  = document.getElementById('fLeito').value.trim();
+  const nome   = document.getElementById('fNome').value.trim();
+  const diag   = document.getElementById('fDiag').value.trim();
+  const plano  = document.getElementById('fPlano').value.trim();
+  const di     = document.getElementById('fDI').value;
+  const alta   = document.getElementById('fAlta').value;
+  const perm   = document.getElementById('fPerm').value;
+  const onco   = document.querySelector('input[name="onco"]:checked').value === 'sim';
+  const editId    = document.getElementById('editId').value;
+  const baseKey   = document.getElementById('editBaseKey').value;
+
+  if (!setor || !leito || !nome || !diag) {
+    showToast('⚠️ Preencha os campos obrigatórios (*)','error'); return;
+  }
+
+  const diStr   = di   ? new Date(di   + 'T12:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}) : '—';
+  const altaStr = alta ? new Date(alta + 'T12:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'}) : '';
+
+  if (baseKey) {
+    // Edit a base patient → store in overrides
+    const existing = baseEdits[baseKey];
+    const obj = {id: existing ? existing.id : null, s:setor,l:leito,n:nome,d:diag,pl:plano,di:diStr,alta:altaStr,perm,onco,src:'base',_baseKey:baseKey,user:currentUser};
+    baseEdits[baseKey] = obj;
+    syncPaciente(obj);
+    showToast('✅ Paciente atualizado no dashboard!','success');
+  } else if (editId) {
+    // Edit an existing NIR-only patient
+    const idx = nirPatients.findIndex(p => p.id == editId);
+    if (idx !== -1) {
+      const obj = {id:Number(editId),s:setor,l:leito,n:nome,d:diag,pl:plano,di:diStr,alta:altaStr,perm,onco,src:'nir',user:currentUser};
+      nirPatients[idx] = obj;
+      syncPaciente(obj);
+      showToast('✅ Paciente NIR atualizado!','success');
+    }
+  } else {
+    // New NIR patient
+    const obj = {id:null,s:setor,l:leito,n:nome,d:diag,pl:plano,di:diStr,alta:altaStr,perm,onco,src:'nir',user:currentUser};
+    nirPatients.push(obj);
+    syncPaciente(obj);
+    showToast('✅ Paciente cadastrado e adicionado ao dashboard!','success');
+  }
+
+  clearForm();
+  renderRecList();
+  updateHeroNir();
+  renderTable();
+}
+
+function deleteNirPatient(id) {
+  if (!confirm('Remover este paciente NIR do dashboard?')) return;
+  nirPatients = nirPatients.filter(p => p.id != id);
+  deletePacienteSupabase(id);
+  renderRecList(); updateHeroNir(); renderTable();
+  showToast('🗑️ Paciente NIR removido','success');
+}
+
+function revertBase(key) {
+  if (!confirm('Reverter este paciente para os dados originais?')) return;
+  delete baseEdits[key];
+  deletePacienteByBaseKey(key);
+  renderRecList(); renderTable();
+  showToast('↩️ Dados originais restaurados','success');
+}
+
+function clearForm() {
+  document.getElementById('editId').value = '';
+  document.getElementById('editBaseKey').value = '';
+  document.getElementById('fSetor').value = '';
+  ['fLeito','fNome','fDiag','fPlano','fDI','fAlta'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('fPerm').value = 'Verde';
+  document.getElementById('oncoNao').checked = true;
+  document.getElementById('formTitle').textContent = '➕ Novo Paciente';
+  document.getElementById('formSub').textContent   = 'Preencha os dados e salve para atualizar o dashboard';
+}
+
+// ═══════════════════════════════════════════════════════════
+// RENDER PATIENT LIST (NIR panel) — shows ALL patients
+// ═══════════════════════════════════════════════════════════
+let recSearch = '';
+let recSector = 'TODOS';
+
+function renderRecList() {
+  const el = document.getElementById('recList');
+  const combined = allPatients().filter(p => {
+    const sOk = recSector === 'TODOS' || p.s === recSector;
+    const tOk = !recSearch
+      || p.n.toLowerCase().includes(recSearch)
+      || p.d.toLowerCase().includes(recSearch)
+      || p.l.includes(recSearch);
+    return sOk && tOk;
+  });
+
+  if (!combined.length) {
+    el.innerHTML = `<div class="empty-state"><div class="ei">🔍</div><p>Nenhum paciente encontrado.</p></div>`;
+    return;
+  }
+
+  el.innerHTML = combined.map(p => {
+    const isNirNew = p.src === 'nir';
+    const isEdited = p._baseKey && baseEdits[p._baseKey];
+    const badge = isNirNew
+      ? `<span class="rec-badge nir">✏️ NIR</span>`
+      : isEdited
+      ? `<span class="rec-badge edited">🖊 Editado</span>`
+      : `<span class="rec-badge base">📋 Base</span>`;
+
+    const pJson = JSON.stringify(p).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,"'");
+
+    const delBtn = isNirNew
+      ? `<button class="btn-del" onclick="deleteNirPatient(${p.id})">🗑️</button>`
+      : isEdited
+      ? `<button class="btn-del" title="Reverter" onclick="revertBase('${p._baseKey}')">↩️</button>`
+      : '';
+
+    return `
+    <div class="rec-item">
+      <div class="rec-item-info">
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+          <span class="ri-nome">${p.n}</span>${badge}
+        </div>
+        <div class="ri-meta">${p.s} · Leito ${p.l} · D.I. ${p.di}${p.alta?' · Alta: '+p.alta:''}</div>
+        <div class="ri-diag">${p.d}${p.onco?' 🎗':''}</div>
+        ${p.pl ? `<div style="font-size:.7rem;color:var(--muted);margin-top:2px">📋 ${p.pl.slice(0,90)}${p.pl.length>90?'…':''}</div>` : ''}
+      </div>
+      <div class="rec-actions">
+        <button class="btn-edit" onclick='loadPatientToForm(${JSON.stringify(p)})'>✏️ Editar</button>
+        ${delBtn}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function filterRecList() {
+  recSearch = document.getElementById('recSearchInput').value.toLowerCase();
+  renderRecList();
+}
+function setRecSector(v, el) {
+  recSector = v;
+  document.querySelectorAll('.rec-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  renderRecList();
+}
+
+// ═══════════════════════════════════════════════════════════
+// HERO COUNTER
+// ═══════════════════════════════════════════════════════════
+function updateHeroNir() {
+  const n = nirPatients.length + Object.keys(baseEdits).length;
+  document.getElementById('h-nir').textContent = n;
+  document.getElementById('h-nir-bar').style.width = Math.min(n*3,100)+'%';
+  const total = 205 + nirPatients.length;
+  document.getElementById('h-ocup').textContent = total;
+  const pct = (total/264*100).toFixed(1);
+  document.getElementById('h-ocup-sub').textContent = pct + '% de ocupação geral';
+  document.getElementById('h-ocup-bar').style.width = pct + '%';
+}
+
+// ═══════════════════════════════════════════════════════════
+// OCC GRID
+// ═══════════════════════════════════════════════════════════
+function getPctClass(pct) {
+  if (pct >= 1)    return ['clr-full','bar-full'];
+  if (pct >= 0.85) return ['clr-high','bar-high'];
+  if (pct >= 0.6)  return ['clr-mid','bar-mid'];
+  return ['clr-low','bar-low'];
+}
+const grid = document.getElementById('occGrid');
+sectors.forEach(s => {
+  const pct = s.total > 0 ? s.ocup/s.total : 0;
+  const pctStr = (pct*100).toFixed(1)+'%';
+  const [clr,bar] = getPctClass(pct);
+  grid.innerHTML += `
+    <div class="occ-card">
+      <div class="occ-top"><div class="occ-name">${s.name}</div><div class="occ-pct ${clr}">${pctStr}</div></div>
+      <div class="occ-nums">
+        <span><b>${s.ocup}</b> ocup.</span><span><b>${s.vagos}</b> vagos</span>
+        ${s.bloq?`<span><b>${s.bloq}</b> bloq.</span>`:''}<span><b>${s.total}</b> total</span>
+      </div>
+      <div class="occ-bar-bg"><div class="occ-bar ${bar}" style="width:${pctStr}"></div></div>
+    </div>`;
+});
+
+// UTI/UPC slots
+const utiNames=['Waldir','Fabio','Sinval','Sebastiao R.','M. Auxiliadora','Ricardo','Sidemar','Tereza','Silvio','Dilcea'];
+const upcNames=['C. Eduardo','Epifania','Ana Maria','Lucia T.','Ana Lucia','Renata','M. Adelia','Luzia','Talita','Joao Passos'];
+const utiEl=document.getElementById('utiSlots'); const upcEl=document.getElementById('upcSlots');
+utiNames.forEach((n,i)=>utiEl.innerHTML+=`<div class="slot slot-occ" title="${n}">L${String(i+1).padStart(2,'0')}</div>`);
+upcNames.forEach((n,i)=>upcEl.innerHTML+=`<div class="slot slot-occ" title="${n}">L${String(i+1).padStart(2,'0')}</div>`);
+
+// ═══════════════════════════════════════════════════════════
+// DASHBOARD TABLE
+// ═══════════════════════════════════════════════════════════
+const ROWS_PER_PAGE = 20;
+let currentPage = 1;
+let currentFilter = 'TODOS';
+let searchTerm = '';
+
+function stayChip(p) {
+  if (p==='Verde')   return `<span class="stay-chip stay-green">🟢 Curto</span>`;
+  if (p==='Amarelo') return `<span class="stay-chip stay-yellow">🟡 Médio</span>`;
+  return                    `<span class="stay-chip stay-red">🔴 Longo</span>`;
+}
+
+
+// ── Days elapsed from a dd/mm date string ──
+function daysElapsed(diStr) {
+  if (!diStr || diStr === '—') return 0;
+  const m = diStr.match(/(\d{2})\/(\d{2})(?:\/(\d{4}))?/);
+  if (!m) return 0;
+  const year = m[3] ? parseInt(m[3]) : new Date().getFullYear();
+  const date = new Date(year, parseInt(m[2])-1, parseInt(m[1]));
+  return Math.floor((Date.now() - date.getTime()) / 86400000);
+}
+
+function getFiltered() {
+  return allPatients().filter(p => {
+    const fOk = currentFilter==='TODOS' ? true
+      : currentFilter==='ONCO' ? p.onco
+      : currentFilter==='NIR'  ? p.src==='nir'
+      : currentFilter==='30DIAS' ? daysElapsed(p.di) >= 30
+      : p.s===currentFilter;
+    const sOk = !searchTerm
+      || p.n.toLowerCase().includes(searchTerm)
+      || p.d.toLowerCase().includes(searchTerm)
+      || p.s.toLowerCase().includes(searchTerm);
+    return fOk && sOk;
+  });
+}
+
+function renderTable() {
+  const filtered = getFiltered();
+  const total = filtered.length;
+  const pages = Math.max(1, Math.ceil(total/ROWS_PER_PAGE));
+  currentPage = Math.min(currentPage, pages);
+  const start = (currentPage-1)*ROWS_PER_PAGE;
+  const slice = filtered.slice(start, start+ROWS_PER_PAGE);
+
+  document.getElementById('tableBody').innerHTML = slice.map(p => {
+    const edited = p._baseKey && baseEdits[p._baseKey];
+    return `
+    <tr>
+      <td class="td-setor">${p.s}${p.src==='nir'?'<span style="font-size:.55rem;margin-left:4px;color:var(--accent)">✏️</span>':edited?'<span style="font-size:.55rem;margin-left:4px;color:var(--yellow)">🖊</span>':''}</td>
+      <td class="td-leito">L-${p.l}</td>
+      <td class="td-nome">${p.n}</td>
+      <td class="td-diag">${p.d}</td>
+      <td class="td-plan">${p.pl||'<span style="color:var(--muted)">—</span>'}</td>
+      <td class="td-alta">${p.alta||'<span style="color:var(--muted)">—</span>'}</td>
+      <td class="td-di">${p.di}</td>
+      <td style="font-family:'DM Mono',monospace;font-size:.72rem;font-weight:600;white-space:nowrap">
+        ${(()=>{
+          const d = daysElapsed(p.di);
+          const key = p.s + '_' + p.l;
+          const aih = aihSet[key];
+          if (d >= 30) {
+            const aihBadge = aih
+              ? `<span class="aih-badge" title="Solicitado por ${aih.user} em ${aih.ts}">📋 Prorrogação solicitada</span>`
+              : `<button class="aih-btn" onclick="toggleAih('${key}','${p.n}')">+ Prorrogar AIH</button>`;
+            const flowPill = getFlowPill(key);
+            return `<span style="color:var(--red);background:rgba(220,38,38,.1);border:1px solid rgba(220,38,38,.25);padding:2px 7px;border-radius:12px">${d}d 🚨</span> ${aihBadge} <button class="flow-btn ${flowData[key]?'has-steps':''}" onclick="openFlowModal('${key}','${p.n}','${p.s}','${p.l}')">📊 Fluxo</button>${flowPill}`;
+          }
+          return d>=15 ? `<span style="color:var(--yellow)">${d}d</span>` : `<span style="color:var(--muted)">${d}d</span>`;
+        })()}
+      </td>
+      <td>${stayChip(p.perm)}</td>
+      <td>${p.onco?'<span class="onco-badge">ONCO</span>':''}</td>
+      <td><button class="btn-edit" onclick="editFromDash(${JSON.stringify(p)})">✏️</button>${p.src==='nir'?`<button class="btn-del" onclick="deleteNirPatient(${p.id})">🗑️</button>`:edited?`<button class="btn-del" title="Reverter" onclick="revertBase('${p._baseKey}')">↩️</button>`:''}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('pageInfo').textContent = `Exibindo ${start+1}–${Math.min(start+ROWS_PER_PAGE,total)} de ${total} pacientes`;
+  const nums = document.getElementById('pageNums');
+  nums.innerHTML='';
+  for(let i=1;i<=pages;i++){
+    const b=document.createElement('button');
+    b.className='page-btn'+(i===currentPage?' active':'');
+    b.textContent=i;
+    b.onclick=()=>{currentPage=i;renderTable();};
+    nums.appendChild(b);
+  }
+}
+
+function editFromDash(p) {
+  switchPage('nir');
+  if (!loggedIn) { showToast('⚠️ Faça login no NIR para editar','error'); return; }
+  loadPatientToForm(p);
+}
+
+function setFilter(f,el) {
+  currentFilter=f; currentPage=1;
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  renderTable();
+}
+function filterTable() { searchTerm=document.getElementById('searchInput').value.toLowerCase(); currentPage=1; renderTable(); }
+function prevPage() { if(currentPage>1){currentPage--;renderTable();} }
+function nextPage() { const p=Math.ceil(getFiltered().length/ROWS_PER_PAGE); if(currentPage<p){currentPage++;renderTable();} }
+
+
+
+// ═══════════════════════════════════════════════════════════
+// PATIENT FLOW
+// ═══════════════════════════════════════════════════════════
+function openFlowModal(key, nome, setor, leito) {
+  activeFlowKey = key;
+  document.getElementById('flowModalTitle').textContent = '📊 Fluxo — ' + nome.split(' ').slice(0,2).join(' ');
+  document.getElementById('flowModalSub').textContent = setor + ' · Leito ' + leito;
+  document.getElementById('flowModal').classList.add('open');
+  renderFlowModal();
+}
+
+function closeFlowModal(e) {
+  if (e && e.target !== document.getElementById('flowModal')) return;
+  document.getElementById('flowModal').classList.remove('open');
+  activeFlowKey = null;
+  renderTable();
+}
+
+function toggleStep(stepId) {
+  if (!activeFlowKey) return;
+  const key = activeFlowKey;
+  if (!flowData[key]) flowData[key] = {};
+  if (flowData[key][stepId]) {
+    delete flowData[key][stepId];
+    removeFlowStepSupabase(key, stepId);
+    if (stepId === 'aih_sol') { delete aihSet[key]; removeAihSupabase(key); renderTable(); }
+  } else {
+    flowData[key][stepId] = {
+      user: currentUser || 'NIR',
+      ts: new Date().toLocaleString('pt-BR', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})
+    };
+    syncFlowStep(key, stepId, currentUser || 'NIR');
+    // sync AIH step with aihSet
+    if (stepId === 'aih_sol') {
+      aihSet[key] = flowData[key][stepId];
+      syncAih(key, { nome: document.getElementById('flowModalTitle').textContent.replace('📊 Fluxo — ',''), user: currentUser || 'NIR', motivo: flowData[key]['aih_motivo']||'' });
+      renderTable();
+    }
+  }
+  renderFlowModal();
+}
+
+function renderFlowModal() {
+  const key = activeFlowKey;
+  const steps = flowData[key] || {};
+  const done = FLOW_STEPS.filter(s => steps[s.id]).length;
+  const pct = Math.round(done / FLOW_STEPS.length * 100);
+
+  document.getElementById('flowProgressTxt').textContent = done + ' / ' + FLOW_STEPS.length + ' etapas';
+  document.getElementById('flowBar').style.width = pct + '%';
+
+  document.getElementById('flowStepsList').innerHTML = FLOW_STEPS.map((s, i) => {
+    const info = steps[s.id];
+    const isDone = !!info;
+
+    // Extra: motivo selector only on aih_sol step
+    let extra = '';
+    if (s.id === 'aih_sol') {
+      const savedMotivo = steps['aih_motivo'] || '';
+      const motivoLabel = savedMotivo ? (AIH_MOTIVOS.find(m => m.id === savedMotivo)||{}).label : '';
+      if (isDone) {
+        extra = motivoLabel
+          ? `<div class="motivo-tag">📌 ${motivoLabel}</div>`
+          : `<div class="motivo-tag" style="color:var(--yellow);border-color:rgba(217,119,6,.3);background:rgba(217,119,6,.08)">⚠️ Selecione o motivo da prorrogação</div>`;
+      } else {
+        extra = `
+        <div class="motivo-wrap">
+          <label>Motivo da Prorrogação de AIH (obrigatório) *</label>
+          <select class="motivo-select" id="motivoSelect" onchange="saveMotivo(this.value)">
+            <option value="">Selecione o motivo...</option>
+            ${AIH_MOTIVOS.map(m => `<option value="${m.id}" ${savedMotivo===m.id?'selected':''}>${m.label}</option>`).join('')}
+          </select>
+        </div>`;
+      }
+    }
+
+    return `
+    <div class="step-row ${isDone?'done':''}" onclick="toggleStep('${s.id}')">
+      <div class="step-check">${isDone ? '✓' : (i+1)}</div>
+      <div style="flex:1">
+        <div class="step-label">${s.icon} ${s.label}</div>
+        <div class="step-meta">${isDone ? '👤 ' + info.user + ' · ' + info.ts : s.desc}</div>
+        ${extra}
+      </div>
+      ${isDone ? '<span style="font-size:.7rem;color:var(--green);flex-shrink:0">✓ Concluído</span>' : '<span style="font-size:.65rem;color:var(--muted);font-family:DM Mono,monospace;flex-shrink:0">Clique para marcar</span>'}
+    </div>`;
+  }).join('');
+}
+
+function saveMotivo(val) {
+  if (!activeFlowKey) return;
+  if (!flowData[activeFlowKey]) flowData[activeFlowKey] = {};
+  if (val) {
+    flowData[activeFlowKey]['aih_motivo'] = val;
+    const label = (AIH_MOTIVOS.find(m => m.id === val)||{}).label || val;
+    syncFlowMotivo(activeFlowKey, val);
+    showToast('📌 Motivo salvo: ' + label.slice(0,40), 'success');
+  } else {
+    delete flowData[activeFlowKey]['aih_motivo'];
+    syncFlowMotivo(activeFlowKey, '');
+  }
+}
+
+function getFlowPill(key) {
+  if (!flowData[key]) return '';
+  const done = FLOW_STEPS.filter(s => flowData[key][s.id]).length;
+  if (!done) return '';
+  const complete = done === FLOW_STEPS.length;
+  const lastStep = FLOW_STEPS.slice().reverse().find(s => flowData[key][s.id]);
+  return `<span class="flow-pill ${complete?'complete':''}">${complete?'✅':lastStep.icon} ${done}/${FLOW_STEPS.length}</span>`;
+}
+
+// ═══════════════════════════════════════════════════════════
+// AIH TOGGLE
+// ═══════════════════════════════════════════════════════════
+function toggleAih(key, nome) {
+  if (aihSet[key]) {
+    if (!confirm('Remover marcação de AIH para ' + nome + '?')) return;
+    delete aihSet[key];
+    removeAihSupabase(key);
+    showToast('↩️ Marcação de AIH removida', '');
+  } else {
+    aihSet[key] = { user: currentUser || 'NIR', ts: new Date().toLocaleString('pt-BR') };
+    syncAih(key, { nome, user: currentUser || 'NIR' });
+    showToast('✅ Prorrogação de AIH solicitada para ' + nome.split(' ')[0], 'success');
+  }
+  renderTable();
+}
+
+
+// ═══════════════════════════════════════════════════════════
+// SER / PENDÊNCIAS
+// ═══════════════════════════════════════════════════════════
+let serPatients = [];   // { id, nome, setor, leito, espec, destino, sit, data, obs, user, ts }
+let serNextId = 1;
+let serLoggedIn = false;
+let serCurrentUser = '';
+let serFilter = 'TODOS';
+
+const SER_SIT_CLASS = { 'Em Fila':'fila','Reservado':'reservado','Internado':'internado','Cancelado':'cancelado' };
+const SER_SIT_DOT   = { 'Em Fila':'var(--accent)','Reservado':'var(--yellow)','Internado':'var(--green)','Cancelado':'var(--red)' };
+
+function doSerLogin() {
+  const u = document.getElementById('serLoginUser').value.trim();
+  const p = document.getElementById('serLoginPass').value;
+  if (u.toLowerCase().startsWith('nir') && p === 'nir123') {
+    serLoggedIn = true; serCurrentUser = u;
+    document.getElementById('serLogin').style.display  = 'none';
+    document.getElementById('serPanel').style.display  = 'block';
+    document.getElementById('serUserLabel').textContent = u;
+    // set today as default date
+    document.getElementById('sData').value = new Date().toISOString().slice(0,10);
+    showToast('✅ Bem-vindo, ' + u + '!', 'success');
+    renderSerList();
+  } else {
+    showToast('❌ Usuário ou senha incorretos', 'error');
+    document.getElementById('serLoginPass').value = '';
+  }
+}
+
+function doSerLogout() {
+  serLoggedIn = false; serCurrentUser = '';
+  document.getElementById('serLogin').style.display  = 'block';
+  document.getElementById('serPanel').style.display  = 'none';
+  document.getElementById('serLoginUser').value = '';
+  document.getElementById('serLoginPass').value = '';
+  clearSerForm();
+}
+
+function updateSitLabels() {
+  ['fila','res','int','can'].forEach(id => {
+    const lbl = document.getElementById('sit-' + id + '-lbl');
+    if (lbl) lbl.style.background = document.getElementById('sit-' + id).checked
+      ? 'rgba(37,99,235,.08)' : 'var(--surface2)';
+  });
+}
+
+function saveSer() {
+  const nome    = document.getElementById('sNome').value.trim();
+  const setor   = document.getElementById('sSetor').value;
+  const leito   = document.getElementById('sLeito').value.trim();
+  const espec   = document.getElementById('sEspec').value.trim();
+  const destino = document.getElementById('sDestino').value;
+  const sit     = document.querySelector('input[name="sSit"]:checked');
+  const data    = document.getElementById('sData').value;
+  const obs     = document.getElementById('sObs').value.trim();
+  const editId  = document.getElementById('serEditId').value;
+
+  if (!nome || !setor || !espec || !destino || !sit) {
+    showToast('⚠️ Preencha os campos obrigatórios (*)','error'); return;
+  }
+
+  const dataStr = data ? new Date(data + 'T12:00').toLocaleDateString('pt-BR') : new Date().toLocaleDateString('pt-BR');
+  const rec = { nome, setor, leito, espec, destino, sit: sit.value, data: dataStr, obs,
+                user: serCurrentUser, ts: new Date().toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) };
+
+  if (editId) {
+    const idx = serPatients.findIndex(p => p.id == editId);
+    if (idx !== -1) {
+      serPatients[idx] = { ...rec, id: Number(editId) };
+      syncSer(serPatients[idx]);
+      showToast('✅ Pendência atualizada!','success');
+    }
+  } else {
+    const newRec = { ...rec, id: null };
+    serPatients.push(newRec);
+    syncSer(newRec);
+    showToast('✅ Pendência cadastrada!','success');
+  }
+
+  clearSerForm();
+  renderSerList();
+  renderDashPending();
+}
+
+function editSer(id) {
+  const p = serPatients.find(x => x.id == id);
+  if (!p) return;
+  document.getElementById('serEditId').value  = id;
+  document.getElementById('sNome').value      = p.nome;
+  document.getElementById('sSetor').value     = p.setor;
+  document.getElementById('sLeito').value     = p.leito;
+  document.getElementById('sEspec').value     = p.espec;
+  document.getElementById('sDestino').value   = p.destino;
+  document.getElementById('sObs').value       = p.obs;
+  // set situation radio
+  const r = document.querySelector(`input[name="sSit"][value="${p.sit}"]`);
+  if (r) { r.checked = true; updateSitLabels(); }
+  document.getElementById('serFormTitle').textContent = '✏️ Editar: ' + p.nome.split(' ')[0];
+  document.getElementById('serFormSub').textContent   = p.setor + ' · Leito ' + (p.leito||'—');
+  document.querySelector('.form-card').scrollIntoView({behavior:'smooth'});
+}
+
+function deleteSer(id) {
+  if (!confirm('Remover esta pendência?')) return;
+  serPatients = serPatients.filter(p => p.id != id);
+  deleteSerSupabase(id);
+  renderSerList(); renderDashPending();
+  showToast('🗑️ Pendência removida','success');
+}
+
+function clearSerForm() {
+  document.getElementById('serEditId').value = '';
+  ['sNome','sLeito','sEspec','sObs'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('sSetor').value   = '';
+  document.getElementById('sDestino').value = '';
+  document.getElementById('sData').value    = new Date().toISOString().slice(0,10);
+  document.querySelectorAll('input[name="sSit"]').forEach(r => r.checked = false);
+  updateSitLabels();
+  document.getElementById('serFormTitle').textContent = '➕ Nova Pendência / SER';
+  document.getElementById('serFormSub').textContent   = 'Preencha os dados e salve para atualizar o painel';
+}
+
+function setSerFilter(f, el) {
+  serFilter = f;
+  document.querySelectorAll('#serSitTabs .rec-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  renderSerList();
+}
+
+function renderSerList() {
+  const search = (document.getElementById('serSearchInput')||{value:''}).value.toLowerCase();
+  const list = document.getElementById('serList');
+  if (!list) return;
+
+  const filtered = serPatients.filter(p => {
+    const fOk = serFilter === 'TODOS' || p.sit === serFilter;
+    const sOk = !search
+      || p.nome.toLowerCase().includes(search)
+      || p.espec.toLowerCase().includes(search)
+      || p.destino.toLowerCase().includes(search)
+      || p.setor.toLowerCase().includes(search);
+    return fOk && sOk;
+  });
+
+  const countLbl = document.getElementById('serCountLabel');
+  if (countLbl) countLbl.textContent = serPatients.length + ' registro' + (serPatients.length !== 1 ? 's' : '');
+
+  if (!filtered.length) {
+    list.innerHTML = `<div class="empty-state"><div class="ei">📭</div><p>Nenhuma pendência encontrada.</p></div>`;
+    return;
+  }
+
+  list.innerHTML = `<div class="ser-list-wrap">` + filtered.slice().reverse().map(p => {
+    const sc = SER_SIT_CLASS[p.sit] || 'fila';
+    return `
+    <div class="ser-card">
+      <div class="ser-card-top">
+        <div>
+          <div class="ser-nome">${p.nome}</div>
+          <div class="ser-meta">${p.setor}${p.leito?' · Leito '+p.leito:''} · Inserido ${p.data}</div>
+        </div>
+        <span class="ser-sit ${sc}">${p.sit}</span>
+      </div>
+      <div class="ser-espec">🏥 ${p.espec}</div>
+      <div class="ser-destino">🎯 Destino: ${p.destino}</div>
+      ${p.obs ? `<div class="ser-obs">📝 ${p.obs}</div>` : ''}
+      <div class="ser-meta" style="margin-top:.2rem">👤 ${p.user} · ${p.ts}</div>
+      <div class="ser-actions">
+        <button class="btn-edit" onclick="editSer(${p.id})">✏️ Editar</button>
+        <button class="btn-del" onclick="deleteSer(${p.id})">🗑️</button>
+      </div>
+    </div>`;
+  }).join('') + `</div>`;
+
+  renderDashPending();
+}
+
+// Update the mini dashboard card
+function renderDashPending() {
+  const el = document.getElementById('dashPendingList');
+  if (!el) return;
+  const active = serPatients.filter(p => p.sit !== 'Cancelado');
+  if (!active.length) {
+    el.innerHTML = `<div style="font-size:.78rem;color:var(--muted);text-align:center;padding:.75rem 0">Nenhuma pendência ativa. <br><span style="font-size:.7rem">Cadastre na aba Pendências / SER.</span></div>`;
+    return;
+  }
+  el.innerHTML = active.slice(-5).reverse().map(p => {
+    const dot = SER_SIT_DOT[p.sit] || 'var(--muted)';
+    return `<div class="pending-item">
+      <div class="pending-dot" style="background:${dot}"></div>
+      <div>
+        <div class="pending-name">${p.nome.toUpperCase()}</div>
+        <div class="pending-detail">${p.espec} — ${p.sit} · ${p.destino}${p.leito?' ('+p.setor+' L'+p.leito+')':' ('+p.setor+')'}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════════════
+// TOAST
+// ═══════════════════════════════════════════════════════════
+function showToast(msg, type='') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (type?' '+type:'');
+  setTimeout(()=>t.className='toast',3200);
+}
+
+// ═══════════════════════════════════════════════════════════
+// CLOCK + INIT
+// ═══════════════════════════════════════════════════════════
+function updateClock() {
+  document.getElementById('clock').textContent = new Date().toLocaleString('pt-BR',{
+    weekday:'long',day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit',second:'2-digit'
+  });
+}
+updateClock(); setInterval(updateClock,1000);
+document.getElementById('year').textContent = new Date().getFullYear();
+updateHeroNir();
+renderTable();
+
+// ── Load data from Supabase on startup ──
+loadAllFromSupabase();
+
+// ── Refresh from Supabase every 30s so changes from other computers appear ──
+setInterval(loadAllFromSupabase, 30000);
+</script>
+</body>
+</html>
