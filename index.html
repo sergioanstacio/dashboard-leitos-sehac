@@ -2150,15 +2150,20 @@ function renderDashPending() {
 // Mapeia nomes de colunas (flexível, case-insensitive, sem acento) para os campos internos
 const IMPORT_COLUMN_MAP = {
   setor:        ['setor','sector','unidade','ala'],
-  leito:        ['leito','cama','lt'],
+  leito:        ['leito','leitos','cama','lt'],
   nome:         ['paciente','nome','nome do paciente','nome completo'],
   diagnostico:  ['diagnostico','diagnóstico','cid','dx'],
-  plano:        ['plano','plano terapeutico','plano terapêutico','pendencia','pendência','observacao','observação','obs'],
-  di:           ['di','d.i.','data internacao','data internação','data de internacao','data de internação','internacao','internação','admissao','admissão','admissao hospitalar','admissão hospitalar','data admissao','data admissão','data de admissao','data de admissão'],
-  alta:         ['alta','previsao de alta','previsão de alta','prev alta','data alta'],
+  plano:        ['plano','plano terapeutico','plano terapêutico','observacao','observação','obs','observacao clinica','observação clínica','observacao nir','observação nir'],
+  pendencia:    ['pendencia','pendência'],
+  di_data:      ['admissao hospitalar','admissão hospitalar','data internacao','data internação','data de internacao','data de internação','admissao','admissão'],
+  di_dias:      ['di hosp','d.i. hosp','di','d.i.','dias internado','dias de internacao','dias de internação'],
+  alta:         ['alta prevista','previsao de alta','previsão de alta','prev alta','data alta','alta'],
   perm:         ['permanencia','permanência','tempo de permanencia','tempo de permanência'],
-  onco:         ['onco','oncologico','oncológico','paciente oncologico','paciente oncológico'],
+  onco:         ['paciente oncologico','paciente oncológico','onco','oncologico','oncológico'],
 };
+
+// Linhas que não são pacientes reais (leito vago, rodapé/legenda da planilha)
+const INVALID_NAME_HINTS = ['vago','vaga','livre','para tempo de permanencia','legenda','bloqueado','bloqueada','bloqueio','interditado','interditada','manutencao','manutenção'];
 
 function normalizeHeader(h) {
   return String(h||'').toLowerCase().trim()
@@ -2168,6 +2173,27 @@ function normalizeHeader(h) {
     .trim();
 }
 
+// Extrai só os dígitos do texto do leito (ex: "LEITO 401" → "401", "LEITO 584 URO" → "584")
+function extractLeitoNumber(raw) {
+  const s = String(raw||'').trim();
+  const m = s.match(/(\d+)/);
+  return m ? m[1] : s.replace(/[^a-zA-Z0-9]/g,'').trim();
+}
+
+// Converte célula de data (string, número serial do Excel, ou objeto Date) em dd/mm/aaaa
+function parseDateCell(val) {
+  if (val === undefined || val === null || val === '') return '';
+  if (val instanceof Date) {
+    const d = val.getDate(), m = val.getMonth()+1, y = val.getFullYear();
+    return String(d).padStart(2,'0') + '/' + String(m).padStart(2,'0') + '/' + y;
+  }
+  if (typeof val === 'number') {
+    const d = XLSX.SSF.parse_date_code(val);
+    if (d) return String(d.d).padStart(2,'0') + '/' + String(d.m).padStart(2,'0') + (d.y ? '/'+d.y : '');
+  }
+  return String(val).trim();
+}
+
 function mapRowToPatient(row, headerMap) {
   const get = (field) => {
     const col = headerMap[field];
@@ -2175,33 +2201,53 @@ function mapRowToPatient(row, headerMap) {
   };
 
   const setor = String(get('setor')||'').trim().toUpperCase();
-  const leito = String(get('leito')||'').trim();
-  const nome  = String(get('nome')||'').trim();
+  const leito = extractLeitoNumber(get('leito'));
+  const nomeRaw = String(get('nome')||'').trim();
+  const nome = nomeRaw;
   const diag  = String(get('diagnostico')||'').trim();
+
   if (!setor || !leito || !nome) return null;
 
-  const plano = String(get('plano')||'').trim();
+  // descarta linhas de leito vago / rodapé / legenda
+  const nomeNorm = normalizeHeader(nome);
+  if (INVALID_NAME_HINTS.some(h => nomeNorm.includes(h))) return null;
 
-  // datas: aceitar formato dd/mm/aaaa, dd/mm, ou serial do Excel
-  function parseDateCell(val) {
-    if (val === undefined || val === null || val === '') return '';
-    if (typeof val === 'number') {
-      // Excel serial date
-      const d = XLSX.SSF.parse_date_code(val);
-      if (d) return String(d.d).padStart(2,'0') + '/' + String(d.m).padStart(2,'0') + (d.y ? '/'+d.y : '');
+  // combina Plano Terapêutico + Pendência num único campo
+  const planoTxt = String(get('plano')||'').trim();
+  const pendTxt  = String(get('pendencia')||'').trim();
+  const plano = [planoTxt, pendTxt].filter(Boolean).join(' — ');
+
+  // D.I.: prioriza a data completa (ADMISSÃO HOSPITALAR); se não houver, tenta calcular a partir de dias
+  let di = parseDateCell(get('di_data'));
+  if (!di) {
+    const dias = get('di_dias');
+    if (dias !== undefined && dias !== '' && !isNaN(Number(dias))) {
+      const d = new Date();
+      d.setDate(d.getDate() - Number(dias));
+      di = String(d.getDate()).padStart(2,'0') + '/' + String(d.getMonth()+1).padStart(2,'0') + '/' + d.getFullYear();
     }
-    return String(val).trim();
   }
-  const di   = parseDateCell(get('di'));
+
   const alta = parseDateCell(get('alta'));
 
-  // permanência
+  // permanência: usa o valor da planilha se houver, senão calcula a partir dos dias internado
   let perm = String(get('perm')||'').trim();
-  const permLower = perm.toLowerCase();
-  if (permLower.includes('verm') || permLower.includes('long') || permLower.includes('red')) perm = 'Vermelho';
-  else if (permLower.includes('amar') || permLower.includes('med') || permLower.includes('méd') || permLower.includes('yellow')) perm = 'Amarelo';
-  else if (permLower.includes('verd') || permLower.includes('cur') || permLower.includes('green')) perm = 'Verde';
-  else perm = 'Verde'; // default
+  if (perm) {
+    const permLower = perm.toLowerCase();
+    if (permLower.includes('verm') || permLower.includes('long') || permLower.includes('red')) perm = 'Vermelho';
+    else if (permLower.includes('amar') || permLower.includes('med') || permLower.includes('méd') || permLower.includes('yellow')) perm = 'Amarelo';
+    else if (permLower.includes('verd') || permLower.includes('cur') || permLower.includes('green')) perm = 'Verde';
+    else perm = '';
+  }
+  if (!perm) {
+    const diasRaw = get('di_dias');
+    const dias = Number(diasRaw);
+    if (!isNaN(dias) && diasRaw !== '' && diasRaw !== undefined) {
+      perm = dias >= 30 ? 'Vermelho' : dias >= 15 ? 'Amarelo' : 'Verde';
+    } else {
+      perm = 'Verde';
+    }
+  }
 
   // oncológico
   let oncoVal = get('onco');
@@ -2232,7 +2278,7 @@ async function handleImportFile() {
 
   try {
     const data = await file.arrayBuffer();
-    const workbook = XLSX.read(data, { type: 'array', cellDates: false });
+    const workbook = XLSX.read(data, { type: 'array', cellDates: true });
 
     if (!workbook.SheetNames.length) {
       statusEl.innerHTML = '<span style="color:var(--red)">⚠️ A planilha não tem nenhuma aba.</span>';
@@ -2240,7 +2286,7 @@ async function handleImportFile() {
     }
 
     // Abas de resumo a ignorar (têm "vagos"/"total"/"ocup" mas não são listas de pacientes)
-    const SUMMARY_SHEET_HINTS = ['resumo','resumo de leitos','geral'];
+    const SUMMARY_SHEET_HINTS = ['resumo','resumo de leitos','geral','pendencia','pendência','legenda','avaliacao vascular','avaliação vascular','evolucao','evolução','importante','agenda'];
 
     let allParsed = [];
     let sheetsRead = [];
@@ -2277,7 +2323,14 @@ async function handleImportFile() {
         };
 
         const leitoCol = findField(IMPORT_COLUMN_MAP.leito);
-        const nomeCol  = findField(IMPORT_COLUMN_MAP.nome);
+        let nomeCol  = findField(IMPORT_COLUMN_MAP.nome);
+
+        // Fallback: planilha pode ter erro de digitação no cabeçalho da coluna Nome
+        // (ex: "vago" em vez de "NOME"). Se achamos Leito mas não Nome, assumimos
+        // que a coluna logo após Leito é o nome — padrão universal nas outras abas.
+        if (leitoCol !== -1 && nomeCol === -1 && leitoCol + 1 < candidateRow.length) {
+          nomeCol = leitoCol + 1;
+        }
 
         if (leitoCol !== -1 && nomeCol !== -1) {
           const tempMap = {};
@@ -2285,6 +2338,8 @@ async function handleImportFile() {
             const col = findField(aliases);
             if (col !== -1) tempMap[field] = col;
           }
+          tempMap.leito = leitoCol;
+          tempMap.nome = nomeCol;
           headerRowIdx = i;
           headerMap = tempMap;
           break;
@@ -2311,7 +2366,8 @@ async function handleImportFile() {
 
       const parsedFromSheet = rows.map(r => mapRowToPatient(r, {
         setor:'setor', leito:'leito', nome:'nome', diagnostico:'diagnostico',
-        plano:'plano', di:'di', alta:'alta', perm:'perm', onco:'onco'
+        plano:'plano', pendencia:'pendencia', di_data:'di_data', di_dias:'di_dias',
+        alta:'alta', perm:'perm', onco:'onco'
       })).filter(Boolean);
 
       if (parsedFromSheet.length) {
