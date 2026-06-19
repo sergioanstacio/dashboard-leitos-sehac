@@ -2230,86 +2230,103 @@ async function handleImportFile() {
   try {
     const data = await file.arrayBuffer();
     const workbook = XLSX.read(data, { type: 'array', cellDates: false });
-    const sheetName = workbook.SheetNames[0];
-    const sheet = workbook.Sheets[sheetName];
 
-    // Read as raw matrix first (array of arrays) so we can find the real header row,
-    // even if the spreadsheet has title/date rows above the actual table.
-    const matrix = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', blankrows: false });
-
-    if (!matrix.length) {
-      statusEl.innerHTML = '<span style="color:var(--red)">⚠️ A planilha está vazia.</span>';
+    if (!workbook.SheetNames.length) {
+      statusEl.innerHTML = '<span style="color:var(--red)">⚠️ A planilha não tem nenhuma aba.</span>';
       return;
     }
 
-    // Scan the first 15 rows looking for the one that looks like a real header
-    // (must contain something matching "setor" AND ("leito" OR "paciente"/"nome"))
-    let headerRowIdx = -1;
-    let headerMap = {};
-    const scanLimit = Math.min(matrix.length, 15);
+    // Abas de resumo a ignorar (têm "vagos"/"total"/"ocup" mas não são listas de pacientes)
+    const SUMMARY_SHEET_HINTS = ['resumo','resumo de leitos','geral'];
 
-    for (let i = 0; i < scanLimit; i++) {
-      const candidateRow = matrix[i];
-      const normalizedCells = candidateRow.map(c => normalizeHeader(c));
+    let allParsed = [];
+    let sheetsRead = [];
+    let sheetsSkipped = [];
 
-      const findField = (aliases) => {
-        for (let c = 0; c < normalizedCells.length; c++) {
-          for (const alias of aliases) {
-            if (normalizedCells[c] === normalizeHeader(alias)) return c;
+    for (const sheetName of workbook.SheetNames) {
+      const normSheetName = normalizeHeader(sheetName);
+      if (SUMMARY_SHEET_HINTS.some(h => normSheetName.includes(normalizeHeader(h)))) {
+        sheetsSkipped.push(sheetName + ' (resumo)');
+        continue;
+      }
+
+      const sheet = workbook.Sheets[sheetName];
+      const matrix = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', blankrows: false });
+      if (!matrix.length) { sheetsSkipped.push(sheetName + ' (vazia)'); continue; }
+
+      // Procura a linha de cabeçalho nesta aba: precisa ter Leito E (Paciente/Nome).
+      // Setor é opcional aqui — se não tiver coluna Setor, usamos o nome da aba.
+      let headerRowIdx = -1;
+      let headerMap = {};
+      const scanLimit = Math.min(matrix.length, 15);
+
+      for (let i = 0; i < scanLimit; i++) {
+        const candidateRow = matrix[i];
+        const normalizedCells = candidateRow.map(c => normalizeHeader(c));
+
+        const findField = (aliases) => {
+          for (let c = 0; c < normalizedCells.length; c++) {
+            for (const alias of aliases) {
+              if (normalizedCells[c] === normalizeHeader(alias)) return c;
+            }
           }
-        }
-        return -1;
-      };
+          return -1;
+        };
 
-      const setorCol = findField(IMPORT_COLUMN_MAP.setor);
-      const leitoCol = findField(IMPORT_COLUMN_MAP.leito);
-      const nomeCol  = findField(IMPORT_COLUMN_MAP.nome);
+        const leitoCol = findField(IMPORT_COLUMN_MAP.leito);
+        const nomeCol  = findField(IMPORT_COLUMN_MAP.nome);
 
-      if (setorCol !== -1 && (leitoCol !== -1 || nomeCol !== -1)) {
-        // found a plausible header row — build the full map from this row
-        const tempMap = {};
-        for (const [field, aliases] of Object.entries(IMPORT_COLUMN_MAP)) {
-          const col = findField(aliases);
-          if (col !== -1) tempMap[field] = col;
+        if (leitoCol !== -1 && nomeCol !== -1) {
+          const tempMap = {};
+          for (const [field, aliases] of Object.entries(IMPORT_COLUMN_MAP)) {
+            const col = findField(aliases);
+            if (col !== -1) tempMap[field] = col;
+          }
+          headerRowIdx = i;
+          headerMap = tempMap;
+          break;
         }
-        headerRowIdx = i;
-        headerMap = tempMap;
-        break;
+      }
+
+      if (headerRowIdx === -1) {
+        sheetsSkipped.push(sheetName + ' (sem cabeçalho Leito+Paciente)');
+        continue;
+      }
+
+      const dataRows = matrix.slice(headerRowIdx + 1);
+      const rows = dataRows.map(r => {
+        const obj = {};
+        for (const [field, col] of Object.entries(headerMap)) {
+          obj[field] = r[col] !== undefined ? r[col] : '';
+        }
+        // se a aba não tem coluna Setor, usa o nome da própria aba
+        if (obj.setor === undefined || String(obj.setor).trim() === '') {
+          obj.setor = sheetName;
+        }
+        return obj;
+      });
+
+      const parsedFromSheet = rows.map(r => mapRowToPatient(r, {
+        setor:'setor', leito:'leito', nome:'nome', diagnostico:'diagnostico',
+        plano:'plano', di:'di', alta:'alta', perm:'perm', onco:'onco'
+      })).filter(Boolean);
+
+      if (parsedFromSheet.length) {
+        allParsed = allParsed.concat(parsedFromSheet);
+        sheetsRead.push(sheetName + ' (' + parsedFromSheet.length + ')');
+      } else {
+        sheetsSkipped.push(sheetName + ' (0 pacientes válidos)');
       }
     }
 
-    if (headerRowIdx === -1 || headerMap.setor === undefined || headerMap.leito === undefined && headerMap.nome === undefined) {
-      const firstRowsPreview = matrix.slice(0, 5).map(r => r.slice(0,8).join(' | ')).join('  ///  ');
-      statusEl.innerHTML = `<span style="color:var(--red)">⚠️ Não encontrei uma linha de cabeçalho com as colunas obrigatórias (Setor + Leito/Paciente) nas primeiras ${scanLimit} linhas.<br><span style="font-size:.68rem;font-family:'DM Mono',monospace">Prévia: ${firstRowsPreview}</span></span>`;
-      return;
-    }
-
-    if (headerMap.leito === undefined) {
-      statusEl.innerHTML = `<span style="color:var(--red)">⚠️ Encontrei a coluna Setor e Paciente, mas não encontrei a coluna Leito. Verifique o nome da coluna na planilha.</span>`;
-      return;
-    }
-
-    // Build row objects (keyed by field name) for every data row after the header
-    const dataRows = matrix.slice(headerRowIdx + 1);
-    const rows = dataRows.map(r => {
-      const obj = {};
-      for (const [field, col] of Object.entries(headerMap)) {
-        obj[field] = r[col] !== undefined ? r[col] : '';
-      }
-      return obj;
-    });
-
-    const parsed = rows.map(r => mapRowToPatient(r, {
-      setor:'setor', leito:'leito', nome:'nome', diagnostico:'diagnostico',
-      plano:'plano', di:'di', alta:'alta', perm:'perm', onco:'onco'
-    })).filter(Boolean);
+    const parsed = allParsed;
 
     if (!parsed.length) {
-      statusEl.innerHTML = '<span style="color:var(--red)">⚠️ Nenhuma linha válida encontrada na planilha.</span>';
+      statusEl.innerHTML = `<span style="color:var(--red)">⚠️ Nenhum paciente encontrado em nenhuma aba.<br><span style="font-size:.68rem">Abas analisadas: ${sheetsSkipped.join(', ')}</span></span>`;
       return;
     }
 
-    if (!confirm(`Importar ${parsed.length} pacientes? Isso irá SUBSTITUIR todos os pacientes da base atual.`)) {
+    if (!confirm(`Encontrei ${parsed.length} pacientes em ${sheetsRead.length} aba(s): ${sheetsRead.join(', ')}.\n\nImportar e SUBSTITUIR todos os pacientes da base atual?`)) {
       statusEl.innerHTML = '';
       return;
     }
