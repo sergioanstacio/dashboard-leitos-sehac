@@ -2162,7 +2162,10 @@ const IMPORT_COLUMN_MAP = {
 
 function normalizeHeader(h) {
   return String(h||'').toLowerCase().trim()
-    .normalize('NFD').replace(/[\u0300-\u036f]/g,''); // remove acentos
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'') // remove acentos
+    .replace(/[\r\n]+/g,' ')   // quebras de linha dentro da célula → espaço
+    .replace(/\s+/g,' ')       // múltiplos espaços → um só
+    .trim();
 }
 
 function mapRowToPatient(row, headerMap) {
